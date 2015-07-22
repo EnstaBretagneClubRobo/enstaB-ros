@@ -1,0 +1,8 @@
+<launch>
+
+<node pkg="matrice_from_imu" type="mat_from_imu" name="matr_from_imu" output="screen">
+  
+</node>
+
+</launch>
+

@@ -1,0 +1,5 @@
+<launch>
+
+<node pkg="hokuyo_node" type="hokuyo_node" name="hokuyo_node"></node>
+<node pkg="writeLaser" type="writeLaser_node" name="writeLaserToTXT" args="$(find writeLaser)/data/text.txt"/>
+</launch>

@@ -1,0 +1,22 @@
+<launch>
+
+<node pkg="state_integrateur" type="state_integrateur_node" name="state_integrateur">
+ <param name="k1"  value="0.0034"/>
+ <param name="k2"  value="-0.01"/>
+
+ <param name="maxRCYaw"  value="1808"/>
+ <param name="minRCYaw"  value="1034"/>
+ <param name="maxRCSpeed"  value="1918"/>
+ <param name="minRCSpeed"  value="1127"/>
+
+ <param name="calibrate"  value="true"/>
+
+ <param name="threshold_Use"  value="true"/>
+ <param name="thrMaxRCYaw"  value="1445"/>
+ <param name="thrMinRCYaw"  value="1320"/>
+ <param name="thrMaxRCSpeed"  value="1586"/>
+ <param name="thrMinRCSpeed"  value="1480"/>
+
+</node>
+
+</launch>
