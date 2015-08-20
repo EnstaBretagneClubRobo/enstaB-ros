@@ -5,40 +5,21 @@
 namespace colour_detect {
 
 
-int ColourVision::fluxWebBE(char *nomFenetre,char *nameSaved){
-    CvCapture *stream = cvCreateCameraCapture(0);
-    char key = 'n';
-
-    if (!stream){
-        printf("Echec du flux video\n");
-        return 0;
-    }
-    cvNamedWindow(nomFenetre, CV_WINDOW_AUTOSIZE );
-    nomFenet = nomFenetre;
-    while(key!='q'&& key!='Q'){
-        frame = cvQueryFrame(stream);
-
-        if (!frame) break;
+int ColourVision::fluxWebBE(IplImage *newFrame){
+        frame = newFrame;
         smooth = cvCreateImage(cvGetSize(frame),frame->depth,3);
         imGloBin = cvCreateImage(cvGetSize(frame),frame->depth,1);
         hsv = cvCreateImage(cvGetSize(frame),frame->depth,frame->nChannels);
 
         memCon = cvCreateMemStorage(0);
 
-        key = cvWaitKey(10);
         trackbarBE(0);
-        if (key == 's' || key == 'S'){
-            cvSaveImage(nameSaved,frame,0);
-            key ='n';
-        }
 
         cvReleaseImage(&smooth);
         cvReleaseImage(&hsv);
         cvReleaseImage(&imGloBin);
         cvReleaseMemStorage(&memCon);
-    }
-    cvDestroyWindow(nomFenetre);
-    cvReleaseCapture(&stream);
+
 }
 
 
@@ -62,7 +43,6 @@ void ColourVision::trackbarBE(int k){
    cvDrawContours( frame, cont,
                    CV_RGB(255,255,0), CV_RGB(0,255,0),
                                   1, 2, 8, cvPoint(0,0));
-   printf("poly");
 
    for(c=cont; c!=NULL; c=c->h_next ){
 
@@ -75,9 +55,7 @@ void ColourVision::trackbarBE(int k){
         }
     }
 
-   printf("end");
-
-   cvNamedWindow(nomFenet,CV_WINDOW_AUTOSIZE);
+   //cvSaveImage("/home/nuc1/Pictures/testCol.png",frame,0);
 
 }
 

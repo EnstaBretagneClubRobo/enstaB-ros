@@ -7,6 +7,7 @@
 #include <opencv/cv.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "sensor_msgs/Image.h"
 
 namespace colour_detect {
 
@@ -17,13 +18,17 @@ class ColourVision
   public:
     ColourVision();
     ~ColourVision();
+
+
+
+    
   private:
     ros::Subscriber image_sub_;
     ros::Publisher image_pub_;
     bool publish_image_;
-
-
-    void imageCB(const sensor_msgs::Image);
+    typedef boost::shared_ptr< cv_bridge::CvImage > Image;
+    Image bridge_;
+    void imageCB(const sensor_msgs::ImageConstPtr& msg_ptr);
 
     IplImage *imGlobal;
     IplImage *imGloDiff;
@@ -48,7 +53,7 @@ class ColourVision
     CvMemStorage *memCon;
 
 
-    int fluxWebBE(char *nomFenetre,char *nameSaved);
+    int fluxWebBE(IplImage *frame);
 
     void trackbarBE(int k);
 };
