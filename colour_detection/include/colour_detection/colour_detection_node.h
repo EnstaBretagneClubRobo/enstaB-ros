@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "sensor_msgs/Image.h"
+#include "colour_detection/Threshold.h"
 
 namespace colour_detect {
 
@@ -25,6 +26,8 @@ class ColourVision
   private:
     ros::Subscriber image_sub_;
     ros::Publisher image_pub_;
+    ros::ServiceServer thresholds_server_;
+
     bool publish_image_;
     typedef boost::shared_ptr< cv_bridge::CvImage > Image;
     Image bridge_;
@@ -34,8 +37,6 @@ class ColourVision
     IplImage *imGloDiff;
     //IplImage *imGloBin;
     IplImage *moyenne;
-    int seuilH;
-    int seuilB;
     int seuilHh;
     int seuilHs;
     int seuilHv;
@@ -56,6 +57,9 @@ class ColourVision
     int fluxWebBE(IplImage *frame);
 
     void trackbarBE(int k);
+
+    bool thresholdCB(colour_detection::Threshold::Request  &req,
+         colour_detection::Threshold::Response &res);
 };
 
 }

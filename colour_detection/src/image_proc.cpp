@@ -5,7 +5,8 @@
 namespace colour_detect {
 
 
-int ColourVision::fluxWebBE(IplImage *newFrame){
+int ColourVision::fluxWebBE(IplImage *newFrame)
+{
         frame = newFrame;
         smooth = cvCreateImage(cvGetSize(frame),frame->depth,3);
         imGloBin = cvCreateImage(cvGetSize(frame),frame->depth,1);
@@ -19,19 +20,17 @@ int ColourVision::fluxWebBE(IplImage *newFrame){
         cvReleaseImage(&hsv);
         cvReleaseImage(&imGloBin);
         cvReleaseMemStorage(&memCon);
-
 }
 
 
-void ColourVision::trackbarBE(int k){
+void ColourVision::trackbarBE(int k)
+{
    cvSmooth(frame, smooth, CV_BLUR, 6, 6, 0.0, 0.0);
    cvCvtColor(smooth,hsv,CV_BGR2HSV);
    cvInRangeS(hsv,cvScalar(seuilBh,seuilBs,seuilBv,0),cvScalar(seuilHh,seuilHs,seuilHv,0),imGloBin);
 
    cvErode(imGloBin, imGloBin, NULL, nbIter);
    cvDilate(imGloBin, imGloBin, NULL, nbIterD);
-
-
 
    CvSeq* cont=0;
    CvSeq* result;
@@ -54,9 +53,6 @@ void ColourVision::trackbarBE(int k){
                                              1, -1, 8, cvPoint(0,0));
         }
     }
-
-   //cvSaveImage("/home/nuc1/Pictures/testCol.png",frame,0);
-
 }
 
 }
