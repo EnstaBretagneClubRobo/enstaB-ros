@@ -23,33 +23,34 @@ ColourVision::ColourVision():
     image_sub_ = nh_private_.subscribe("/camera/rgb/image_color",1,&ColourVision::imageCB,this);
     image_pub_= nh_private_.advertise<sensor_msgs::Image>("image_processed", 5);
     thresholds_server_ = nh_private_.advertiseService("set_thresholds",&ColourVision::thresholdCB,this);//temp
-    cvNamedWindow("test", CV_WINDOW_AUTOSIZE );
+
 };
 
 //destructor ColourVision
 ColourVision::~ColourVision(){};
 
-void ColourVision::imageCB(const sensor_msgs::ImageConstPtr& msg_ptr)
+void ColourVision::imageCB(const sensor_msgs::Image msg_ptr)
 {
   //ROS -> OPENCV
-  CvMat cv_image;
+  Image bridge_;
+
   bridge_ = cv_bridge::toCvCopy(msg_ptr, "bgr8");
-  cv_image = bridge_->image ;
-  IplImage *ipl_image ;
-  IplImage *sub = cvCreateImage(cvSize(bridge_->image.cols, bridge_->image.rows), IPL_DEPTH_8U,3); 
-  ipl_image = cvGetImage( &cv_image, sub);  
- 
+
+
   //Processing
-  fluxWebBE(ipl_image);
+  fluxWebBE(bridge_->image);
 
   //OPENCV -> ROS
   cv_bridge::CvImage newIma;
-  newIma.image = cv::cvarrToMat(frame);
+  newIma.image = bridge_->image;
   newIma.encoding = bridge_->encoding;
   newIma.header = bridge_->header;
   sensor_msgs::Image newIm;
   newIma.toImageMsg(newIm);
   image_pub_.publish(newIm);
+
+  bridge_->image.release();
+  
 }
 
 

@@ -2,7 +2,7 @@
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/imgproc/imgproc.hpp>
-//#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <opencv/highgui.h>
 #include <opencv/cv.h>
 #include <stdio.h>
@@ -30,8 +30,8 @@ class ColourVision
 
     bool publish_image_;
     typedef boost::shared_ptr< cv_bridge::CvImage > Image;
-    Image bridge_;
-    void imageCB(const sensor_msgs::ImageConstPtr& msg_ptr);
+    
+    void imageCB(const sensor_msgs::Image msg_ptr);
 
     IplImage *imGlobal;
     IplImage *imGloDiff;
@@ -45,18 +45,9 @@ class ColourVision
     int seuilBv;
     int nbIter;
     int nbIterD;
-    IplImage *frame;
-    char *nomFenet;
-    IplImage *smooth;
-    IplImage *hsv;
-    IplImage *imGloBin;
+    
 
-    CvMemStorage *memCon;
-
-
-    int fluxWebBE(IplImage *frame);
-
-    void trackbarBE(int k);
+    int fluxWebBE(cv::Mat &newFrame);
 
     bool thresholdCB(colour_detection::Threshold::Request  &req,
          colour_detection::Threshold::Response &res);
