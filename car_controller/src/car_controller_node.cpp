@@ -3,7 +3,8 @@
 
 
 CarController::CarController():startCheck(false),
-                               start(false)
+                               start(false),
+                               receivedData(false)
 {
     ros::NodeHandle nh_private_("~");
     ros::NodeHandle nh;
@@ -22,10 +23,16 @@ CarController::CarController():startCheck(false),
         channel_k1_ = 0;
     if (!nh_private_.getParam ("channel_k2", channel_k2_))
         channel_k2_ = 2;
+    if (!nh_private_.getParam ("vitesse",speed_))
+        speed_ = 150;
+    if (!nh_private_.getParam ("kUv", kUv_))
+        kUv_ = 0.1;
 
     path_sub_= nh_private_.subscribe("astar_path/map_path",1, &CarController::pathCB,this);
     client_ = nh_private_.serviceClient<pwm_serial_py::Over_int>("pwm_serial_send");
-
+    service_ = nh_private_.advertiseService("starter", &CarController::starterControl,this);
+    serviceSpeed_ = nh_private_.advertiseService("speed", &CarController::speedControl,this);//TODO transform this service to a subcriber ?
+    servicekUv_ = nh_private_.advertiseService("kUv", &CarController::kUvControl,this);
 }
 
 
@@ -34,9 +41,9 @@ CarController::~CarController(){}
 void CarController::pathCB(const astar_path::CasePath newCases)
 {
  
-  
+  receivedData = true;
   waitCases = newCases;
-  if (!startCheck)
+  if (!startCheck && receivedData)
     cases = newCases;
   
 }
@@ -90,7 +97,7 @@ void CarController::spinPath(){
   double e = thetabar-theta;
   
   double u=atan(tan(e/2));//atan for modulo 2*pi*/
-  double v = 5 - 0.1*abs(u) ;//TODO find the right parameters
+  double v = speed_ - kUv_*abs(u) ;//TODO find the right parameters
   sendCommand(1500+v,1500+u);
 }
 
@@ -108,7 +115,7 @@ int CarController::sendCommand(double k1,double k2){
 }
 
 void CarController::spin(){
-  ros::Rate loop_rate(10);
+  ros::Rate loop_rate(30);
 
   int count = 0;
   while (ros::ok())
@@ -119,6 +126,27 @@ void CarController::spin(){
       spinPath();
   }
 
+}
+
+bool CarController::starterControl(car_controller::Start_Control::Request &req,car_controller::Start_Control::Response &res){
+
+  start = req.demand; 
+  res.result = true;
+  return  true;
+}
+
+bool CarController::speedControl(car_controller::Double_Control::Request &req,car_controller::Double_Control::Response &res){
+
+  speed_ = req.demand; 
+  res.result = true;
+  return  true;
+}
+
+bool CarController::kUvControl(car_controller::Double_Control::Request &req,car_controller::Double_Control::Response &res){
+
+  kUv_ = req.demand; 
+  res.result = true;
+  return  true;
 }
 
 int main(int argc,char **argv)
