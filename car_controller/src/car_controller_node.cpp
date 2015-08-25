@@ -2,7 +2,8 @@
 #include "car_controller/car_controller_node.h"
 
 
-CarController::CarController()
+CarController::CarController():startCheck(false),
+                               start(false)
 {
     ros::NodeHandle nh_private_("~");
     ros::NodeHandle nh;
@@ -17,26 +18,27 @@ CarController::CarController()
         map_frame_ = "/map";
     if (!nh_private_.getParam ("base_frame", base_frame_))
         base_frame_ = "/base_link";
-   /* map_sub = nh_private_.subscribe("/map",1,&AstarPath::mapCB,this);
-    path_pub_= nh_private_.advertise<astar_path::CasePath>("path", 5);
-    map_path_pub_= nh_private_.advertise<nav_msgs::OccupancyGrid>("map_path", 1);
-    goal_server_ = nh_private_.advertiseService("set_goal",&AstarPath::setGoalService,this);*/
-    path_sub_= nh_private_.subscribe("astar_path/map_path",1, &CarController::pathCB,this);
+    if (!nh_private_.getParam ("channel_k1", channel_k1_))
+        channel_k1_ = 0;
+    if (!nh_private_.getParam ("channel_k2", channel_k2_))
+        channel_k2_ = 2;
 
+    path_sub_= nh_private_.subscribe("astar_path/map_path",1, &CarController::pathCB,this);
+    client_ = nh_private_.serviceClient<pwm_serial_py::Over_int>("pwm_serial_send");
 
 }
 
 
-CarController::~CarController(){}
+CarController::~CarController(){} 
 
-void CarController::pathCB(astar_path::CasePath cases)
+void CarController::pathCB(const astar_path::CasePath newCases)
 {
-  // check Drone Position in regards of points 
-  int size = cases.x.size();
-  int i=0;
-  while ( !checkPosSegment(cases.x[i],cases.y[i],cases.x[i+1],cases.y[i+1]) && i < size-1) {
-    i++;
-  }
+ 
+  
+  waitCases = newCases;
+  if (!startCheck)
+    cases = newCases;
+  
 }
 
 bool CarController::checkPosSegment(double ax,double ay,double bx,double by){
@@ -47,22 +49,77 @@ bool CarController::checkPosSegment(double ax,double ay,double bx,double by){
 
 bool CarController::checkPosSegment(double *a,double *b)
 {
-  tf::StampedTransform transform;
-  tf_listener_.lookupTransform(map_frame_, base_frame_,  
-                               ros::Time(0), transform);
+  
   double vOrthoAB[2],vMB[2];
   vOrthoAB[0] = -(b[1]-a[1]);
   vOrthoAB[1] = (b[0]-a[1]);
-  vMB[0] = b[0]-transform.getOrigin().x();
-  vMB[1] = b[1]-transform.getOrigin().y();
+  vMB[0] = b[0]-transformX.getOrigin().x();
+  vMB[1] = b[1]-transformX.getOrigin().y();
   // we do MB^BC BC is orthogonol to AB M the position of base_link
   return vMB[0]*vOrthoAB[1]-vMB[1]*vOrthoAB[0]<0; //true if we didn't pass through B
 }
 
 
+void CarController::spinPath(){
+  
+  int size = cases.x.size();
+  int i=0;
+  
+  cases = waitCases;
 
+  // check Drone Position in regards of points 
+  startCheck  = true;//TODO should be multithreading protected
+  tf_listener_.lookupTransform(map_frame_, base_frame_,  
+                               ros::Time(0), transformX);
+  
+  while ( !checkPosSegment(cases.x[i],cases.y[i],cases.x[i+1],cases.y[i+1]) && i < size-1) {
+    i++;
+  }
+  double vABx = cases.x[i+1]-cases.x[i];
+  double vABy = cases.y[i+1]-cases.y[i];
+  double vAMx = transformX.getOrigin().x()-cases.x[i];
+  double vAMy = transformX.getOrigin().y()-cases.y[i];
+  double roll,pitch,theta;
+  transformX.getBasis().getRPY(roll, pitch, theta);
+  startCheck  = false;
 
+  //follow abstract ligne
+  double phi = atan2(vABy,vABx);
+  double eL = (vABx*vAMy-vABy*vAMx)/sqrt(pow(vABx,2)+pow(vABy,2));//det([b-a,m-a])/norm(b-a);//distance a la ligne
+  double thetabar = phi-atan(eL);
+  double e = thetabar-theta;
+  
+  double u=atan(tan(e/2));//atan for modulo 2*pi*/
+  double v = 5 - 0.1*abs(u) ;//TODO find the right parameters
+  sendCommand(1500+v,1500+u);
+}
 
+int CarController::sendCommand(double k1,double k2){
+  srv_.request.over_msg.fill(0);
+  srv_.request.over_msg[channel_k1_] = k1;
+  srv_.request.over_msg[channel_k2_] = k2;
+
+  if (!client_.call(srv_))
+  {
+    ROS_ERROR("Failed to call service pwm_serial_send");
+    return 1;
+  }
+  return 0;
+}
+
+void CarController::spin(){
+  ros::Rate loop_rate(10);
+
+  int count = 0;
+  while (ros::ok())
+  {
+    ros::spinOnce();
+    loop_rate.sleep();
+    if (start)
+      spinPath();
+  }
+
+}
 
 int main(int argc,char **argv)
 {   
@@ -70,7 +127,7 @@ int main(int argc,char **argv)
     
     CarController node;
 
-    ros::spin();
+    node.spin();
 
     return 0;
 }
