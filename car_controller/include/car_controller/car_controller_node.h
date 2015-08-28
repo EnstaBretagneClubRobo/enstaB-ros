@@ -12,6 +12,9 @@
 #include "car_controller/Start_Control.h"
 #include "car_controller/Double_Control.h"
 
+namespace car_controller
+{
+
 class CarController
 {
  public:
@@ -23,13 +26,14 @@ class CarController
  private:
    double k1_;
    double k2_;
-   
+   int ros_rate;
 
    std::string input_data_type_;
    std::string map_frame_;
    std::string base_frame_;
    
    ros::Subscriber path_sub_;
+   ros::Subscriber map_sub_;
    ros::ServiceClient client_;
 
    ros::ServiceServer service_;
@@ -40,8 +44,7 @@ class CarController
    int channel_k1_;
    int channel_k2_;
    double speed_;//this value only make sens in pwm (we do 1500(neutral)+ x to drive)
-   double kUv_;
-
+   
 
    tf::TransformListener tf_listener_;
 
@@ -50,7 +53,7 @@ class CarController
    bool starterControl(car_controller::Start_Control::Request &req,car_controller::Start_Control::Response &res);
 
    bool speedControl(car_controller::Double_Control::Request &req,car_controller::Double_Control::Response &res);
-
+//////////////////////////////////////
    bool kUvControl(car_controller::Double_Control::Request &req,car_controller::Double_Control::Response &res);
 
    void pathCB(astar_path::CasePath);
@@ -58,15 +61,40 @@ class CarController
    bool checkPosSegment(double *a,double *b);
 
    bool checkPosSegment(double ax,double ay,double bx,double by);
+
+   void spinPath();
+
+   double kUv_;
+   double ku_;
+   astar_path::CasePath cases;
+   astar_path::CasePath waitCases;   
+//////////////////////////////////////   
+   void mapCB(const nav_msgs::OccupancyGrid newMap);
    
+   void spinOccupancyGrid();
+
+   void transformToCase(int *pos);
+   void calculPotentiel(int const *pos,double *command);
+
+   int nFromXY(int const *coord);
+   
+   double xp;//speed
+   tf::StampedTransform transformXOld;
+
+   nav_msgs::OccupancyGrid map;
+   nav_msgs::OccupancyGrid waitMap;
+/////////////////////////////////////
    bool start;
    bool receivedData;
    bool startCheck;
 
-   void spinPath();
+   typedef void (CarController::*spin_ptr)();
+   spin_ptr spinCommand;
+   
 
    int sendCommand(double k1,double k2);
 
-   astar_path::CasePath cases;
-   astar_path::CasePath waitCases;                  
+               
 };
+
+}

@@ -1,0 +1,23 @@
+<launch>
+
+<node pkg="car_controller" type="car_controller_node" name="car_controller">
+
+ <param name="feedback_data_type"  value="CasePath"/>
+ <param name="k1"  value="0.1"/>
+ <param name="k2"  value="0.1"/>
+
+ <param name="map_frame"  value="/map"/>
+ <param name="base_frame"  value="/base_link"/>
+
+<!--> </-->
+ <param name="channel_k1"  value="0"/>
+ <param name="channel_k2"  value="2"/>
+
+ <param name="speed"  value="150"/>
+ <param name="kUv"  value="0.5"/>
+ <param name="ku"  value="0.5"/>
+ <param name="ros_rate"  value="30"/>
+
+</node>
+
+</launch>
