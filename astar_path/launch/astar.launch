@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+
+<node pkg="astar_path" type="astar_path_node" name="astar_path">
+  <param name="map_frame"  value="map"/>
+  <param name="base_frame"  value="laser"/>
+</node>
+
+</launch>
