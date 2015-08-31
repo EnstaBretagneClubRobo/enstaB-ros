@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+
+<node pkg="movie_save" type="movie_save_node" name="movie_record">
+  <param name="fps"  value="1"/>
+  <param name="filepath"  value="./test/"/>
+</node>
+
+</launch>
