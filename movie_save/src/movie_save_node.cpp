@@ -38,7 +38,7 @@ int main(int argc,char **argv)
     {
       fps = atoi(argv[1]);
     }
-    if (argc == 3)
+    else if (argc == 3)
     {
       filepath = argv[2];
     }
