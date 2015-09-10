@@ -16,7 +16,7 @@ import pxssh
 ##
 ##ROS
 import rospy
-
+import time
 #os.system('xset r off')
 
 @atexit.register
@@ -28,6 +28,16 @@ fenetre  = Tk()
 
 label = Label(fenetre,text="Ground Station ROS Eurathlon")
 label.pack()
+
+
+def center(toplevel):
+    toplevel.update_idletasks()
+    w = toplevel.winfo_screenwidth()
+    h = toplevel.winfo_screenheight()
+    size = tuple(int(_) for _ in toplevel.geometry().split('+')[0].split('x'))
+    x = w/2 - size[0]/2
+    y = h/2 - size[1]/2
+    toplevel.geometry("%dx%d+%d+%d" % (size + (x, y)))
 
 
 def callback():
@@ -81,6 +91,7 @@ def connect():
        ssh = pxssh.pxssh()
        bConnect.config(relief = RAISED,text='Connection',bg='grey')
        bConnect.pack()
+       showinfo("Disconnection","You have disconnect from the robot")
        connectedSSH = 0
     else:
         print "connection"
@@ -279,8 +290,81 @@ t5.frame.pack()
 
 
 ################### Panel Driving command ####################
+topControl = None
 
+def closeTeleOp():
+    topControl.destroy()
+    os.system('xset r on')
+    print "end control"
 
+def spawnControl():
+    print "control"
+    global topControl
+    os.system('xset r off')
+    topControl = Toplevel()
+    topControl.title("Control Robot")
+    labelframe = LabelFrame(topControl, text="Commands ", padx=5, pady=5)
+    labelframe.pack(fill="both", expand="yes")
+    labelframe.pack(padx=10, pady=10)
+    up = Label(labelframe,text="UP")
+    up.grid(row=0,column=1)
+    left = Label(labelframe,text="Left")
+    left.grid(row=1,column=0)
+    right = Label(labelframe,text="Right")
+    right.grid(row=1,column=2)
+    down = Label(labelframe,text="Down")
+    down.grid(row=2,column=1)
+    Button(topControl,text='Close TeleOp',bg='orange',command=closeTeleOp).pack()
+    labelframe.bind("<KeyPress>",keydown)
+    labelframe.bind("<KeyRelease>",keyup)
+    labelframe.pack()
+    labelframe.focus_set()
+    center(topControl)
+
+def sendGPS():
+    print "1-GPS"
+
+topGPS = None
+textGPS = None
+
+def sendWayPoint():
+    print "Waypoint"
+    topGPS.destroy()
+
+def sendMGPS():
+    global topGPS,textGPS
+    topGPS = Toplevel()
+    topGPS.title("Enter GPS coordonates")
+    textGPS = Text(topGPS,width= 80,height= 15)
+    textGPS.pack()
+    Button(topGPS,text='Send WayPoint',bg='pink',command=sendWayPoint).pack()
+    print "M-GPS"
+
+p4 = PanedWindow(fenetre, orient=HORIZONTAL)
+p4.pack(side=TOP, expand=Y, fill=BOTH, pady=2, padx=2)
+frame42 = Frame(width=50, height=70, bg='grey', colormap="new")
+frame41 = Frame(width=550, height=70, bg='grey', colormap="new")
+#
+p4.add(frame41)
+labelGPS = Label(frame41,text="Send GPS waypoint",bg='grey')
+labelGPS.pack()
+valueLong = StringVar()
+valueLong.set("Longitude")
+entreLong = Entry(frame41,textvariable=valueLong,width=30)
+entreLong.pack()
+valueLat = StringVar()
+valueLat.set("Lattitude")
+entreLat = Entry(frame41,textvariable=valueLat,width=30)
+entreLat.pack()
+button1GPS = Button(frame41,text='Send GPS coord',background = 'yellow',command=sendGPS)
+button1GPS.pack()
+
+buttonMGPS = Button(frame41,text='Send Multiple GPS waypoint',background = 'cyan',command=sendMGPS)
+buttonMGPS.pack()
+#
+p4.add(frame42)
+buttonTeleOp = Button(frame42,text='Take Control !',background = 'red',command=spawnControl)
+buttonTeleOp.pack()
 
 
 ##############################################################
@@ -290,41 +374,31 @@ t5.frame.pack()
 p5 = PanedWindow(fenetre, orient=HORIZONTAL)
 p5.pack(side=TOP, expand=Y, fill=BOTH, pady=2, padx=2)
 frame52 = Frame(width=50, height=70, bg='grey', colormap="new")
+frame51 = Frame(width=50, height=70, bg='grey', colormap="new")
+#
+p5.add(frame51)
+#
 p5.add(frame52)
 labelOPI= Label(frame52,text = "OPI Detection Alarm: ",background='grey', anchor=W)
 labelOPI.pack()
 ledOPI = led.LED(frame52,status=STATUS_WARN);
 ledOPI.frame.pack()
-ledOPz = led.LED(frame52,status=STATUS_WARN);
-ledOPz.frame.pack()
-
-
 ##############################################################
 def keyup(e):
     print 'up',e.char
 
 def keydown(e):
     print 'down',e.char
-frame = Frame(fenetre,width=100,height=100)
-frame.bind("<KeyPress>",keydown)
-frame.bind("<KeyRelease>",keyup)
-frame.pack()
-frame.focus_set()
 
 
-Button(text='Action',command=callback).pack()
+
 
 #exit button
 button = Button(fenetre,text="Fermer",command=fenetre.quit)
 button.pack()
 
-def getvalue():
-    showinfo("alerte",entree.get())
 
 
-
-b2 = Button(fenetre,text="valider",command=getvalue)
-b2.pack()
 
 
 fenetre.mainloop()
