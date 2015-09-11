@@ -25,8 +25,8 @@ def autorepeat():
     ssh.close()
 
 fenetre  = Tk()
-
-label = Label(fenetre,text="Ground Station ROS Eurathlon")
+fenetre.title("Ground Station ROS Eurathlon")
+label = Label(fenetre,text="Connection SSH")
 label.pack()
 
 
@@ -65,6 +65,7 @@ ssh = pxssh.pxssh()
 
 
 def connection():
+    global connectedSSH
     try:                 
         ssh.login (entreIP.get(), entreLog.get(), entreMdp.get())
         ssh.sendline ('uptime')   # run a command
@@ -75,6 +76,7 @@ def connection():
         print ssh.before
         bConnect.config(relief = SUNKEN,text='Disconnection',bg='green')
         bConnect.pack()
+        connectedSSH = 1
     except Exception, e:
        showerror( "SSH session failed on login." ,str(e))  
        
@@ -96,7 +98,6 @@ def connect():
     else:
         print "connection"
         connection()
-        connectedSSH = 1
     valueMdp.set("")
     entreMdp.pack()
     
@@ -120,7 +121,7 @@ entreIP.pack()
 p.add(frame12)
 frame13 = Frame(width=150, height=70, bg='grey', colormap="new")
 valueMdp = StringVar()
-valueMdp.set("")
+valueMdp.set("password")
 entreMdp = Entry(frame13,textvariable=valueMdp,width=30)
 entreMdp.pack()
 p.add(frame13)
@@ -340,10 +341,18 @@ def sendMGPS():
     Button(topGPS,text='Send WayPoint',bg='pink',command=sendWayPoint).pack()
     print "M-GPS"
 
+def goGPS():
+    print "go gps"
+
+def goMGPS():
+    print "follow M-GPS"
+
 p4 = PanedWindow(fenetre, orient=HORIZONTAL)
 p4.pack(side=TOP, expand=Y, fill=BOTH, pady=2, padx=2)
+
+frame41 = Frame(width=500, height=70, bg='grey', colormap="new")
 frame42 = Frame(width=50, height=70, bg='grey', colormap="new")
-frame41 = Frame(width=550, height=70, bg='grey', colormap="new")
+frame43 = Frame(width=50, height=70, bg='grey', colormap="new")
 #
 p4.add(frame41)
 labelGPS = Label(frame41,text="Send GPS waypoint",bg='grey')
@@ -363,7 +372,15 @@ buttonMGPS = Button(frame41,text='Send Multiple GPS waypoint',background = 'cyan
 buttonMGPS.pack()
 #
 p4.add(frame42)
-buttonTeleOp = Button(frame42,text='Take Control !',background = 'red',command=spawnControl)
+buttonGo1GPS = Button(frame42,text='Go to GPS point',background = '#ADFF2F',command=goGPS)
+buttonGo1GPS.pack(pady=2,padx=2)
+buttonGoMGPS = Button(frame42,text='Follow GPS path',background = '#ADFF2F',command=goMGPS)
+buttonGoMGPS.pack(pady=2,padx=2)
+labelInfo = Label(frame42,text = "Not considering GPS point",bg='grey')
+labelInfo.pack()
+#
+p4.add(frame43)
+buttonTeleOp = Button(frame43,text='Take Control !',background = 'red',command=spawnControl)
 buttonTeleOp.pack()
 
 
@@ -371,12 +388,24 @@ buttonTeleOp.pack()
 
 
 ###################     OPI Detection     ####################
+def openVideo():
+    os.system("rqt_image_view &")
+    print "open video"
+
+def openImage():
+    os.system("rqt_image_view &")
+    print "open last dectection"
+
 p5 = PanedWindow(fenetre, orient=HORIZONTAL)
 p5.pack(side=TOP, expand=Y, fill=BOTH, pady=2, padx=2)
 frame52 = Frame(width=50, height=70, bg='grey', colormap="new")
 frame51 = Frame(width=50, height=70, bg='grey', colormap="new")
 #
 p5.add(frame51)
+buttonVideo = Button(frame51,text='Open Video',background = '#CD5C5C',command=openVideo)
+buttonVideo.pack()
+buttonImage = Button(frame51,text='View last detection',background = '#CD5C5C',command=openImage)
+buttonImage.pack()
 #
 p5.add(frame52)
 labelOPI= Label(frame52,text = "OPI Detection Alarm: ",background='grey', anchor=W)
@@ -402,4 +431,4 @@ button.pack()
 
 
 fenetre.mainloop()
-os.system('xset r off')
+os.system('xset r on')
