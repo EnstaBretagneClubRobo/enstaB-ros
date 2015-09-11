@@ -114,7 +114,7 @@ class drift_detect_node(object):
            (Ktrans,Krot) = self.bufferKinect.getDiff(index[0],index[1])
            (Ftrans,Frot) = self.bufferFakeOdo.getDiff(index[0],index[1])
 
-
+#TODO getLast Good transform
    
 
 

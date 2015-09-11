@@ -34,7 +34,7 @@ class observed_node(object):
 
 class diagnostic_node(object):
     def __init__(self):
-        rospy.init_node('pwm_serial')
+        rospy.init_node('diagnostic_node')
         rospy.on_shutdown(self.ShutdownCallback)
 
     def ShutdownCallback(self):
@@ -59,9 +59,5 @@ class diagnostic_node(object):
 
 
 node = diagnostic_node()
-name = "car_calibration"
-#node.pingNode("car_calibration")
-#node.killNode("car_calibration")
-#node.pingNode("car_calibration")
 node.spin()
 
