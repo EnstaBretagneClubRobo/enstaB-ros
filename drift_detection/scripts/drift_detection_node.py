@@ -12,13 +12,12 @@ class bufferTrans(object):
         self.IsGoodList = []
 
     def add(self,trans,rot,IsGood):
-        if is not IsGood:
+        if not IsGood:
             self.addReal(0,0,0)
         else:
             self.addReal(trans,rot,1)
     
     def addReal(self,trans,rot,IsGood):
-        print "temp"
         if len(self.TransList)== self.bufferSize:
            self.TransList = self.TransLit[1:]
            self.rotList = self.rotList[1:]
@@ -31,7 +30,7 @@ class bufferTrans(object):
         if len(self.TransList)-futur < 0 or len(self.TransList)-past < 0:
            ROS_ERROR("trying to see past the buffer size")
            return 0
-        else
+        else:
            euler = trans.euler_from_quaternion(self.rotList[-futur]*trans.quaternion_inverse(self.rotList[-past]))
            TransVect = (self.TransList[-futur][0]-self.TransList[-past][0],
                         self.TransList[-futur][1]-self.TransList[-past][1],
@@ -59,7 +58,7 @@ def getLastVector(listt,cond):
             n=n-1
         i=i+1                          
     return resultIndex
-
+########################################################
 class drift_detect_node(object):
     def __init__(self):
         rospy.init_node('drift_detection')
@@ -77,20 +76,26 @@ class drift_detect_node(object):
         kinect = 1
         fakeOdo = 1
         rate = rospy.Rate(1.0)
+        trans1 = (0,0,0)
+        rot1 = (0,0,0,0)
+        trans2 = (0,0,0)
+        rot2 = (0,0,0,0)
+        trans3 = (0,0,0)
+        rot3 = (0,0,0,0)
         
         while not rospy.is_shutdown():
             try:
-                (trans1,rot1) = listener.lookupTransform("proxy_frame", "laser", rospy.Time(0))
+                (trans1,rot1) = self.listener.lookupTransform("proxy_frame", "laser", rospy.Time(0))
                 hokuyo = 1
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                 hokuyo = 0
             try:
-                (trans2,rot2) = listener.lookupTransform("proxy_frame", "camera_link", rospy.Time(0))
+                (trans2,rot2) = self.listener.lookupTransform("proxy_frame", "camera_link", rospy.Time(0))
                 kinect = 1
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                 kinect = 0
             try:
-                (trans3,rot3) = listener.lookupTransform("proxy_frame", "roue", rospy.Time(0))
+                (trans3,rot3) = self.listener.lookupTransform("proxy_frame", "roue", rospy.Time(0))
                 fakeOdo = 1
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                 fakeOdo = 0
@@ -101,12 +106,13 @@ class drift_detect_node(object):
             self.analyseBuffer()
             rate.sleep()
 
-     def analyseBuffer(self):
-         binTime = [(x+y+z)  for (x, y,z) in zip(self.bufferHokuyo.IsGoodList,self.bufferKinect.IsGoodList,self.bufferFakeOdo.IsGoodList)]
-         index = getLastVector(binTime,3)
-         (Htrans,Hrot) = self.bufferHokuyo.getDiff(index[0],index[1])
-         (Ktrans,Krot) = self.bufferKinect.getDiff(index[0],index[1])
-         (Ftrans,Frot) = self.bufferFakeOdo.getDiff(index[0],index[1])
+    def analyseBuffer(self):
+        binTime = [(x+y+z)  for (x, y,z) in zip(self.bufferHokuyo.IsGoodList,self.bufferKinect.IsGoodList,self.bufferFakeOdo.IsGoodList)]
+        index = getLastVector(binTime,3)
+        if not index[0] >= index[1]:
+           (Htrans,Hrot) = self.bufferHokuyo.getDiff(index[0],index[1])
+           (Ktrans,Krot) = self.bufferKinect.getDiff(index[0],index[1])
+           (Ftrans,Frot) = self.bufferFakeOdo.getDiff(index[0],index[1])
 
 
    
