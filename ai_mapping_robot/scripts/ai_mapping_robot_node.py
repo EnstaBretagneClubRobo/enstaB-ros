@@ -5,6 +5,9 @@ import smach
 import smach_ros
 import time
 from std_msgs.msg import Empty 
+from gps_handler.srv import *
+
+global autonomous_level #0 teleOP 1semi autonomous  2 full autonomous
 
 ############# INITIALISATION ###################################
 class Init(smach.State):  
@@ -14,17 +17,53 @@ class Init(smach.State):
     def execute(self, userdata):
         rospy.loginfo("init...")
         #get Data for what to do, level of autonomous
-        #wait for GPS
-        #wait all First algo en ligne
+        
         #verification branchement des sensors
         #ccny hokuyo test mavros 
         rospy.wait_for_service('start_node_srv')
-
+        #wait parameter
 
 
         rospy.wait_for_service('/camera_rgb_frame_tf/get_loggers')
         rospy.wait_for_service('/pwm_serial_send')
         rospy.wait_for_service('/hokuyo_node/self_test')
+        rospy.wait_for_service('IsNear')
+        is_near_srv = rospy.ServiceProxy('IsNear', IsNear)
+        start= rospy.get_time()
+        while  rospy.get_time()-start < 5*60  and not gpsdata:
+             rospy.sleep(1.0/20.0)
+
+        if not gpsdata
+           autonomous_level = 0
+           return 'endInitTeleOp'
+     
+        start= rospy.get_time()
+        try:
+          (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+          exit(0)
+        Lat = 10,600
+        Long = 42,4555
+        msgSRV = IsNearRequest()
+        msgSRV.type1 = 0
+        msgSRV.type2 = 1
+        msgSRV.xLont1 = trans1[0]
+        msgSRV.yLat1 = trans1[1]
+        msgSRV.xLont2 = Long
+        msgSRV.yLat2 = Lat
+        msgSRV.threshold = 500
+        res = is_near_srv(msgSRV).response
+        while rospy.get_time()-start < 5*60 and not res:#wait for GPS for 5 min
+             try:
+                (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                continue
+             msgSRV.xLont1 = trans1[0]
+             msgSRV.yLat1 = trans1[1]
+             res = is_near_srv(msgSRV).response
+             rospy.sleep(1.0/20.0)
+        if not res:
+           return 'endInitTeleOp'
         return 'endInit'
 #################################################################
 
@@ -35,10 +74,37 @@ class GoBuildingGPS(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo("GoBuildingGPS")
-        #wait for GPS waipoint(s)
+        
         #launch GPS algo plus evitement obstacle
+        #wait for GPS waipoint(s)
         #make sure Cytron is good
+        #launch algo colour movie recorder
         #needed PKG gps algo move color detection mavros pwm_serial_send
+        Lat = 10,600#last coord
+        Long = 42,4555
+        msgSRV = IsNearRequest()
+        msgSRV.type1 = 0
+        msgSRV.type2 = 1
+        msgSRV.xLont1 = trans1[0]
+        msgSRV.yLat1 = trans1[1]
+        msgSRV.xLont2 = Long
+        msgSRV.yLat2 = Lat
+        msgSRV.threshold = 1
+        res = is_near_srv(msgSRV).response
+        while not res:#wait for GPS for 5 min
+             if self.preempt_requested():
+                ROS_INFO("Go building GPS is being preempted")
+                self.service_preempt()
+                return 'preempted'
+
+             try:
+                (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                continue
+             msgSRV.xLont1 = trans1[0]
+             msgSRV.yLat1 = trans1[1]
+             res = is_near_srv(msgSRV).response
+             #if end algo change algo to direct one
         return 'endGoBuilding'
 
 def goBGPS_cb(outcome_map):
@@ -67,8 +133,32 @@ class GoBuildingGPSArdu(smach.State):
         rospy.loginfo("GoBuilfingGPSArdu")
         #wait for GPS waipoint(s)
         #tell ardu GPS waypoint 
-        #make sure Cytron is good
-        #needed PKG color detection mavros ccny
+        #launch algo colour movie recorder
+        Lat = 10,600#last coord
+        Long = 42,4555
+        msgSRV = IsNearRequest()
+        msgSRV.type1 = 0
+        msgSRV.type2 = 1
+        msgSRV.xLont1 = trans1[0]
+        msgSRV.yLat1 = trans1[1]
+        msgSRV.xLont2 = Long
+        msgSRV.yLat2 = Lat
+        msgSRV.threshold = 1
+        res = is_near_srv(msgSRV).response
+        while not res:#wait for GPS for 5 min
+             if self.preempt_requested():
+                ROS_INFO("Go building GPS Ardu is being preempted")
+                self.service_preempt()
+                return 'preempted'
+             try:
+                (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                continue
+             msgSRV.xLont1 = trans1[0]
+             msgSRV.yLat1 = trans1[1]
+             res = is_near_srv(msgSRV).response
+             #if end algo change algo to direct one
+        #stop autonomous ardu
         return 'endGoBuilding'
 
 def goBGPSArdu_cb(outcome_map):
@@ -95,9 +185,15 @@ class GoBuildingTeleOp(smach.State):
     def execute(self, userdata):
         rospy.loginfo("GoBuilfingGPSArdu")
         #wait for GPS waipoint(s)
-        #tell ardu GPS waypoint 
         #make sure Cytron is good 
-        #needed PKG mavros pwm_serial_send ccny
+        #needed PKG pwm_serial_send ccny
+        # signal to end  
+        while not teleOpGOend:#send by callback
+            if self.preempt_requested():
+                ROS_INFO("Go building TeleOp is being preempted")
+                self.service_preempt()
+                return 'preempted'
+            rospy.sleep(1.0/20.0)
         return 'endGoBuilding'
 
 def goBTeleOp_cb(outcome_map):
@@ -123,6 +219,7 @@ class EmergencyStopGo(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo("EmergencyStopGo")
+        #send 1500 1500
         #make sure Cytron is good
         #start algo deplacement       
         #needed PKG pwm_serial_send 
@@ -138,10 +235,13 @@ class InitEntryBuilding(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo("InitEntryBuilding")
-        #wait for GPS waipoint(s)
-        #tell ardu GPS waypoint 
+       #check if orentation send
+        #checkorientation
+        #calc size map needed
         #make sure Cytron is good
+        #launch ccny hector static
         #needed PKG mavros diagnostic
+        
         return 'endEntryBuilding'
 
 def entry_cb(outcome_map):
@@ -185,7 +285,14 @@ class CartographieBuilding(smach.State):
         rospy.loginfo("CartographieBuilding")
         #make sure Cytron is good
         #start algo deplacement       
+        #if not teleOp launch algo point gps donne a l'avance ou lit ici
         #needed PKG : ccny hector hokuyo pwm_serial_send car_controller (astar_path) 
+        while not cartoEnd:#send by callback
+            if self.preempt_requested():
+                ROS_INFO("interior Cartographie is being preempted")
+                self.service_preempt()
+                return 'preempted'
+            rospy.sleep(1.0/20.0)
         return 'endCartographieBuilding'
 
 def intercarto_cb(outcome_map):
@@ -214,6 +321,10 @@ class ProceduralStop(smach.State):
         #need restart algo ?
         #start algo deplacement       
         #needed PKG sauvegarde ?
+        if self.preempt_requested():
+            ROS_INFO("ProceduralStop is being preempted")
+            self.service_preempt()
+            return 'preempted'
         return 'endProceduralStop'
 
 def proc_cb(outcome_map):
@@ -240,7 +351,7 @@ class EmergencyStopInt(smach.State):
     def execute(self, userdata):
         rospy.loginfo("EmergencyStopInt")
         #make sure Cytron is good
-        #start algo deplacement       
+        #check algo state       
         #needed PKG sauvegarde ?
         return 'endEmergencyStopInt'
 
@@ -257,9 +368,33 @@ class ExitBuilding(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo("ExitBuilding")
-        #need restart algo ?
+        if not autonomous_level:
+           return 'teleop' 
         #start algo deplacement       
         #needed PKG astar_path pwm_serial_send mavros gps ?
+        Lat = 10,600#coord of entry
+        Long = 42,4555
+        msgSRV = IsNearRequest()
+        msgSRV.type1 = 0
+        msgSRV.type2 = 1
+        msgSRV.xLont1 = trans1[0]
+        msgSRV.yLat1 = trans1[1]
+        msgSRV.xLont2 = Long
+        msgSRV.yLat2 = Lat
+        msgSRV.threshold = 1
+        res = is_near_srv(msgSRV).response
+        while not res or not arrived:#wait for GPS for 5 min
+             if self.preempt_requested():
+                ROS_INFO("Exit Building is being preempted")
+                self.service_preempt()
+                return 'preempted'
+             try:
+                (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                continue
+             msgSRV.xLont1 = trans1[0]
+             msgSRV.yLat1 = trans1[1]
+             res = is_near_srv(msgSRV).response
         return 'endExitBuilding'
 
 def exit_cb(outcome_map):
@@ -284,10 +419,14 @@ class ExitBuildingTeleOp(smach.State):
         smach.State.__init__(self, outcomes=['endExitBuilding'])
 
     def execute(self, userdata):
-        rospy.loginfo("ExitBuilding")
-        #need restart algo ?
-        #start algo deplacement       
-        #needed PKG astar_path pwm_serial_send mavros gps ?
+        rospy.loginfo("ExitBuilding") 
+        while not exitTeleopEnd: 
+             if self.preempt_requested():
+                ROS_INFO("Exit Building Telop is being preempted")
+                self.service_preempt()
+                return 'preempted'
+             rospy.sleep(1.0/20.0)
+        #needed PKG  pwm_serial_send mavros gps ?
         return 'endExitBuilding'
 
 def exitTeleOp_cb(outcome_map):
@@ -350,6 +489,32 @@ class ReturnHomeGPS(smach.State):
         #need restart algo ?
         #start algo deplacement 
         #needed PKG mavros pwm_serial_send algo
+        #launch GPS algo plus evitement obstacle
+        #wait for GPS waipoint(s)
+        Lat = 10,600#last coord of waypoint
+        Long = 42,4555
+        msgSRV = IsNearRequest()
+        msgSRV.type1 = 0
+        msgSRV.type2 = 1
+        msgSRV.xLont1 = trans1[0]
+        msgSRV.yLat1 = trans1[1]
+        msgSRV.xLont2 = Long
+        msgSRV.yLat2 = Lat
+        msgSRV.threshold = 1
+        res = is_near_srv(msgSRV).response
+        while not res:#wait for GPS for 5 min
+             if self.preempt_requested():
+                ROS_INFO("Return Home GPS is being preempted")
+                self.service_preempt()
+                return 'preempted'
+             try:
+                (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                continue
+             msgSRV.xLont1 = trans1[0]
+             msgSRV.yLat1 = trans1[1]
+             res = is_near_srv(msgSRV).response
+             #if end algo change algo to direct one
         return 'endReturnHomeGPS'
 
 def retGPS_cb(outcome_map):
@@ -377,7 +542,35 @@ class ReturnHomeArdu(smach.State):
         rospy.loginfo("ReturnHomeArdu")
         #need restart algo ?
         #start algo deplacement       
-        #needed PKG mavros 
+        #needed PKG mavros
+        #wait for GPS waipoint(s)
+        #tell ardu GPS waypoint 
+        #launch algo colour movie recorder
+        Lat = 10,600#last coord
+        Long = 42,4555
+        msgSRV = IsNearRequest()
+        msgSRV.type1 = 0
+        msgSRV.type2 = 1
+        msgSRV.xLont1 = trans1[0]
+        msgSRV.yLat1 = trans1[1]
+        msgSRV.xLont2 = Long
+        msgSRV.yLat2 = Lat
+        msgSRV.threshold = 1
+        res = is_near_srv(msgSRV).response
+        while not res:#wait for GPS for 5 min
+             if self.preempt_requested():
+                ROS_INFO("Return Home GPS Ardu is being preempted")
+                self.service_preempt()
+                return 'preempted'
+             try:
+                (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                continue
+             msgSRV.xLont1 = trans1[0]
+             msgSRV.yLat1 = trans1[1]
+             res = is_near_srv(msgSRV).response
+             #if end algo change algo to direct one
+        #stop autonomous ardu
         return 'endReturnHomeArdu'
 
 def retGPSArdu_cb(outcome_map):
@@ -406,6 +599,13 @@ class ReturnHomeTeleOp(smach.State):
         #need restart algo ?
         #start algo deplacement       
         #needed PKG mavros pwm_serial_send 
+        # signal to end  
+        while not teleOpGOend:#send by callback
+            if self.preempt_requested():
+                ROS_INFO("Exit Building is being preempted")
+                self.service_preempt()
+                return 'preempted'
+            rospy.sleep(1.0/20.0)
         return 'endReturnHomeTeleOp'
 
 
@@ -437,6 +637,41 @@ class EmergencyStopReturn(smach.State):
         #needed PKG sauvegarde ?
         return 'endEmergencyStopInt'
 
+###################################################################
+################### Failed Node Monitoring ########################
+###################################################################
+def goBGPS_monitoring(ud, msg):
+    checkNode = ['mavros','pwm_serial']
+
+def goBGPSA_monitoring(ud,msg):
+    print "t"
+
+def goBTeleOp_monitoring(ud, msg):
+    print "t"
+
+def prepEntry_monitoring(ud, msg):
+    print "t"
+
+def intercarto_monitoring(ud, msg):
+    print "t"
+
+def procStop_monitoring(ud, msg):
+    print "t"
+
+def exitB_monitoring(ud, msg):
+    print "t"
+
+def exitBTeleOp_monitoring(ud, msg):
+    print "t"
+
+def retGPS_monitoring(ud, msg):
+    print "t"
+
+def retGPSA_monitoring(ud, msg):
+    print "t"
+
+def retTeleOp_monitoring(ud, msg):
+    print "t"
 
 ###################################################################
 def ShutdownCallback():
@@ -512,49 +747,49 @@ returnHomeTeleOp_concurrence = smach.Concurrence(outcomes=['TeleOp_done','TeleOp
 
 with gobuildingGPS_concurrence:
     smach.Concurrence.add('GPS_norm', GoBuildingGPS())
-    smach.Concurrence.add('GPS_STOP', smach_ros.MonitorState("/GPS_stop",Empty,monitor_cb))
+    smach.Concurrence.add('GPS_STOP_STUCK', smach_ros.MonitorState("/GPS_stop_stuck",Empty,monitor_cb))
 
 with gobuildingGPSArdu_concurrence:
-    smach.Concurrence.add('Angle_calc', GoBuildingGPSArdu())
-    smach.Concurrence.add('Angle_STOP', smach_ros.MonitorState("/sm_stop",Empty,monitor_cb))
-
+    smach.Concurrence.add('GPSA_norm', GoBuildingGPSArdu())
+    smach.Concurrence.add('GPSA_STOP', smach_ros.MonitorState("/stop_command",Empty,monitor_cb))
 
 with gobuildingTeleOp_concurrence:
-    smach.Concurrence.add('Lin_calc', GoBuildingTeleOp())
-    smach.Concurrence.add('Lin_STOP', smach_ros.MonitorState("/sm_stop",Empty,monitor_cb))
+    smach.Concurrence.add('TeleOp', GoBuildingTeleOp())
+    smach.Concurrence.add('TeleOp_STOP', smach_ros.MonitorState("/stop_command",Empty,monitor_cb))
 
 with initEntry_concurrence:
-    smach.Concurrence.add('Lin_calc', InitEntryBuilding())
-    smach.Concurrence.add('Lin_STOP', smach_ros.MonitorState("/sm_stop",Empty,monitor_cb))
+    smach.Concurrence.add('InitEntry', InitEntryBuilding())
+    smach.Concurrence.add('Entry_STOP', smach_ros.MonitorState("/stop_command",Empty,monitor_cb))
 
 
 with interiorCartoGraphie_concurrence:
-    smach.Concurrence.add('Lin_calc', CartographieBuilding())
-    smach.Concurrence.add('Lin_STOP', smach_ros.MonitorState("/sm_stop",Empty,monitor_cb))
+    smach.Concurrence.add('InterCarto', CartographieBuilding())
+    smach.Concurrence.add('Carto_STOP', smach_ros.MonitorState("/stop_command",Empty,monitor_cb))
 
 with procedural_stop_concurrence:
-    smach.Concurrence.add('Lin_calc', ProceduralStop())
-    smach.Concurrence.add('Lin_STOP', smach_ros.MonitorState("/sm_stop",Empty,monitor_cb))
+    smach.Concurrence.add('ProcStop', ProceduralStop())
+    smach.Concurrence.add('ProcStop_STOP', smach_ros.MonitorState("/stop_command",Empty,monitor_cb))
+
 
 with exitBuilding_concurrence:
-    smach.Concurrence.add('Lin_calc', ExitBuilding())
-    smach.Concurrence.add('Lin_STOP', smach_ros.MonitorState("/sm_stop",Empty,monitor_cb))
+    smach.Concurrence.add('ExitBuild', ExitBuilding())
+    smach.Concurrence.add('ExitB_STOP', smach_ros.MonitorState("/stop_command",Empty,monitor_cb))
 
 with exitBuildingTeleOp_concurrence:
-    smach.Concurrence.add('Lin_calc', ExitBuildingTeleOp())
-    smach.Concurrence.add('Lin_STOP', smach_ros.MonitorState("/sm_stop",Empty,monitor_cb))
+    smach.Concurrence.add('ExitTeleOp', ExitBuildingTeleOp())
+    smach.Concurrence.add('ExitTeleOp_STOP', smach_ros.MonitorState("/stop_command",Empty,monitor_cb))
 
 with returnHomeGPS_concurrence:
-    smach.Concurrence.add('Lin_calc', ReturnHomeGPS())
-    smach.Concurrence.add('Lin_STOP', smach_ros.MonitorState("/sm_stop",Empty,monitor_cb))
+    smach.Concurrence.add('RetHomeGPS', ReturnHomeGPS())
+    smach.Concurrence.add('RetHomeGPS_STOP', smach_ros.MonitorState("/stop_command",Empty,monitor_cb))
 
 with returnHomeGPSArdu_concurrence:
-    smach.Concurrence.add('Lin_calc', ReturnHomeArdu())
-    smach.Concurrence.add('Lin_STOP', smach_ros.MonitorState("/sm_stop",Empty,monitor_cb))
+    smach.Concurrence.add('RetHomeGPSArdu', ReturnHomeArdu())
+    smach.Concurrence.add('RetHomeGPSArdu_STOP', smach_ros.MonitorState("/stop_command",Empty,monitor_cb))
 
 with returnHomeTeleOp_concurrence:
-    smach.Concurrence.add('Lin_calc', ReturnHomeTeleOp())
-    smach.Concurrence.add('Lin_STOP', smach_ros.MonitorState("/sm_stop",Empty,monitor_cb))
+    smach.Concurrence.add('RetTeleOp', ReturnHomeTeleOp())
+    smach.Concurrence.add('RetTeleOp_STOP', smach_ros.MonitorState("/stop_command",Empty,monitor_cb))
 
 #
 
