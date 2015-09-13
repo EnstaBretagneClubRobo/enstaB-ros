@@ -76,14 +76,14 @@ def spin():
     calcGPS()
     rospy.sleep(1.0/20)
     
-def ShutdownCallback(self):
+def ShutdownCallback():
     print 'shutdown' #send stop messages 
 
 def casesCallBack(msg):
     print "gps point" 
     #transform to UTM
 
-rospy.init_node('drift_detection')
+rospy.init_node('gps_follow_car')
 rospy.on_shutdown(ShutdownCallback)
 listener = tf.TransformListener()
     

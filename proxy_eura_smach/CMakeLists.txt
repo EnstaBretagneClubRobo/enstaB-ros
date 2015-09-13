@@ -1,43 +1,33 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(gps_handler)
+project(proxy_eura_smach)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  geometry_msgs
-  mavros
   message_generation
   message_runtime
-  nav_msgs
-  std_msgs
   rospy
-  tf
+  std_msgs
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
 
-## Uncomment this if the package has a setup.py. This macro ensures
-## modules and global scripts declared therein get installed
-## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
-# catkin_python_setup()
-
-
-
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
+ add_message_files(
+   FILES
+   ErrorMessage.msg
 #   Message2.msg
-# )
+ )
 
 ## Generate services in the 'srv' folder
-add_service_files(
-   FILES
-   IsNear.srv
-)
+# add_service_files(
+#   FILES
+#   Service1.srv
+#   Service2.srv
+# )
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -48,9 +38,10 @@ add_service_files(
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
-   DEPENDENCIES
-   std_msgs #geometry_msgs#   nav_msgs
-)
+  DEPENDENCIES
+  std_msgs
+ )
+
 
 
 ###################################
@@ -64,8 +55,8 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES gps_handler
-#  CATKIN_DEPENDS geometry_msgs mavros message_generation message_runtime nav_msgs rospy tf
+#  LIBRARIES proxy_eura_smach
+#  CATKIN_DEPENDS message_generation message_runtime rospy std_msgs
 #  DEPENDS system_lib
 )
 
@@ -79,5 +70,4 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS}
 )
-
 

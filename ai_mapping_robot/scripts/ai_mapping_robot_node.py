@@ -6,6 +6,7 @@ import smach_ros
 import time
 from std_msgs.msg import Empty 
 from gps_handler.srv import *
+from proxy_eura_smach import ErrorMessage
 
 global autonomous_level #0 teleOP 1semi autonomous  2 full autonomous
 
@@ -33,7 +34,7 @@ class Init(smach.State):
         while  rospy.get_time()-start < 5*60  and not gpsdata:
              rospy.sleep(1.0/20.0)
 
-        if not gpsdata
+        if not gpsdata:
            autonomous_level = 0
            return 'endInitTeleOp'
      
@@ -108,21 +109,21 @@ class GoBuildingGPS(smach.State):
         return 'endGoBuilding'
 
 def goBGPS_cb(outcome_map):
-    if outcome_map['Angle_calc'] == 'angle_succeeded':
+    if outcome_map['GPS_norm'] == 'endGoBuilding':
         return True
-    elif outcome_map['Angle_STOP'] == 'invalid':
+    elif outcome_map['GPS_STOP'] == 'invalid':
         return True
     else:
         return False
 
 
 def goBGPS_out_cb(outcome_map):
-    if outcome_map['Angle_STOP'] == 'invalid':
-        return 'angle_stop'
-    elif outcome_map['Angle_calc'] == 'angle_succeeded':
-        return 'angle_done'
+    if outcome_map['GPS_STOP'] == 'invalid':
+        return 'gps_stop'
+    elif outcome_map['GPS_norm'] == 'endGoBuilding':
+        return 'gps_done'
     else:
-        return 'angle_stop'
+        return 'gps_stop'
 
 ##
 class GoBuildingGPSArdu(smach.State):
@@ -162,21 +163,21 @@ class GoBuildingGPSArdu(smach.State):
         return 'endGoBuilding'
 
 def goBGPSArdu_cb(outcome_map):
-    if outcome_map['Angle_calc'] == 'angle_succeeded':
+    if outcome_map['GPSA_norm'] == 'endGoBuilding':
         return True
-    elif outcome_map['Angle_STOP'] == 'invalid':
+    elif outcome_map['GPSA_STOP'] == 'invalid':
         return True
     else:
         return False
 
 
 def goBGPSArdu_out_cb(outcome_map):
-    if outcome_map['Angle_STOP'] == 'invalid':
-        return 'angle_stop'
-    elif outcome_map['Angle_calc'] == 'angle_succeeded':
-        return 'angle_done'
+    if outcome_map['GPSA_STOP'] == 'invalid':
+        return 'gps_stop'
+    elif outcome_map['GPSA_norm'] == 'endGoBuilding':
+        return 'gps_done'
     else:
-        return 'angle_stop'
+        return 'gps_stop'
 ##
 class GoBuildingTeleOp(smach.State):
     def __init__(self):
@@ -197,21 +198,21 @@ class GoBuildingTeleOp(smach.State):
         return 'endGoBuilding'
 
 def goBTeleOp_cb(outcome_map):
-    if outcome_map['Angle_calc'] == 'angle_succeeded':
+    if outcome_map['TeleOp'] == 'endGoBuilding':
         return True
-    elif outcome_map['Angle_STOP'] == 'invalid':
+    elif outcome_map['TeleOp_STOP'] == 'invalid':
         return True
     else:
         return False
 
 
 def goBTeleOp_out_cb(outcome_map):
-    if outcome_map['Angle_STOP'] == 'invalid':
-        return 'angle_stop'
-    elif outcome_map['Angle_calc'] == 'angle_succeeded':
-        return 'angle_done'
+    if outcome_map['TeleOp_STOP'] == 'invalid':
+        return 'TeleOp_stop'
+    elif outcome_map['TeleOp'] == 'endGoBuilding':
+        return 'TeleOp_done'
     else:
-        return 'angle_stop'
+        return 'TeleOp_stop'
 ##
 class EmergencyStopGo(smach.State):
     def __init__(self):
@@ -245,21 +246,21 @@ class InitEntryBuilding(smach.State):
         return 'endEntryBuilding'
 
 def entry_cb(outcome_map):
-    if outcome_map['Angle_calc'] == 'angle_succeeded':
+    if outcome_map['InitEntry'] == 'endEntryBuilding':
         return True
-    elif outcome_map['Angle_STOP'] == 'invalid':
+    elif outcome_map['Entry_STOP'] == 'invalid':
         return True
     else:
         return False
 
 
 def entry_out_cb(outcome_map):
-    if outcome_map['Angle_STOP'] == 'invalid':
-        return 'angle_stop'
-    elif outcome_map['Angle_calc'] == 'angle_succeeded':
-        return 'angle_done'
+    if outcome_map['Entry_STOP'] == 'invalid':
+        return 'preEntry_stop'
+    elif outcome_map['InitEntry'] == 'endEntryBuilding':
+        return 'preEntry_done'
     else:
-        return 'angle_stop'
+        return 'preEntry_stop'
 ##
 class EmergencyStopEntry(smach.State):
     def __init__(self):
@@ -272,8 +273,6 @@ class EmergencyStopEntry(smach.State):
         #needed PKG
         return 'endEmergencyStopEntry'
 ###################################################################
-
-
 
 ################ InteriorCartoGraphie #####################
 
@@ -296,21 +295,21 @@ class CartographieBuilding(smach.State):
         return 'endCartographieBuilding'
 
 def intercarto_cb(outcome_map):
-    if outcome_map['Angle_calc'] == 'angle_succeeded':
+    if outcome_map['InterCarto'] == 'endCartographieBuilding':
         return True
-    elif outcome_map['Angle_STOP'] == 'invalid':
+    elif outcome_map['Carto_STOP'] == 'invalid':
         return True
     else:
         return False
 
 
 def intercarto_out_cb(outcome_map):
-    if outcome_map['Angle_STOP'] == 'invalid':
-        return 'angle_stop'
-    elif outcome_map['Angle_calc'] == 'angle_succeeded':
-        return 'angle_done'
+    if outcome_map['Carto_STOP'] == 'invalid':
+        return 'carto_proc'
+    elif outcome_map['InterCarto'] == 'endCartographieBuilding':
+        return 'carto_done'
     else:
-        return 'angle_stop'
+        return 'carto_proc'
 ##
 class ProceduralStop(smach.State):
     def __init__(self):
@@ -328,21 +327,21 @@ class ProceduralStop(smach.State):
         return 'endProceduralStop'
 
 def proc_cb(outcome_map):
-    if outcome_map['Angle_calc'] == 'angle_succeeded':
+    if outcome_map['ProcStop'] == 'endProceduralStop':
         return True
-    elif outcome_map['Angle_STOP'] == 'invalid':
+    elif outcome_map['ProcStop_STOP'] == 'invalid':
         return True
     else:
         return False
 
 
 def proc_out_cb(outcome_map):
-    if outcome_map['Angle_STOP'] == 'invalid':
-        return 'angle_stop'
-    elif outcome_map['Angle_calc'] == 'angle_succeeded':
-        return 'angle_done'
+    if outcome_map['ProcStop_STOP'] == 'invalid':
+        return 'Proc_stop'
+    elif outcome_map['ProcStop'] == 'endProceduralStop':
+        return 'Proc_done'
     else:
-        return 'angle_stop'
+        return 'Proc_stop'
 ##
 class EmergencyStopInt(smach.State):
     def __init__(self):
@@ -398,21 +397,21 @@ class ExitBuilding(smach.State):
         return 'endExitBuilding'
 
 def exit_cb(outcome_map):
-    if outcome_map['Angle_calc'] == 'angle_succeeded':
+    if outcome_map['ExitBuild'] == 'endExitBuilding':
         return True
-    elif outcome_map['Angle_STOP'] == 'invalid':
+    elif outcome_map['ExitB_STOP'] == 'invalid':
         return True
     else:
         return False
 
 
 def exit_out_cb(outcome_map):
-    if outcome_map['Angle_STOP'] == 'invalid':
-        return 'angle_stop'
-    elif outcome_map['Angle_calc'] == 'angle_succeeded':
-        return 'angle_done'
+    if outcome_map['ExitB_STOP'] == 'invalid':
+        return 'exit_stop'
+    elif outcome_map['ExitBuild'] == 'endExitBuilding':
+        return 'exit_done'
     else:
-        return 'angle_stop'
+        return 'exit_stop'
 ##
 class ExitBuildingTeleOp(smach.State):
     def __init__(self):
@@ -430,21 +429,21 @@ class ExitBuildingTeleOp(smach.State):
         return 'endExitBuilding'
 
 def exitTeleOp_cb(outcome_map):
-    if outcome_map['Angle_calc'] == 'angle_succeeded':
+    if outcome_map['ExitTeleOp'] == 'endExitBuilding':
         return True
-    elif outcome_map['Angle_STOP'] == 'invalid':
+    elif outcome_map['ExitTeleOp_STOP'] == 'invalid':
         return True
     else:
         return False
 
 
 def exitTeleOp_out_cb(outcome_map):
-    if outcome_map['Angle_STOP'] == 'invalid':
-        return 'angle_stop'
-    elif outcome_map['Angle_calc'] == 'angle_succeeded':
-        return 'angle_done'
+    if outcome_map['ExitTeleOp_STOP'] == 'invalid':
+        return 'exit_stop'
+    elif outcome_map['ExitTeleOp'] == 'endExitBuilding':
+        return 'exit_done'
     else:
-        return 'angle_stop'
+        return 'exit_stop'
 ##
 class EmergencyStopExit(smach.State):
     def __init__(self):
@@ -518,21 +517,21 @@ class ReturnHomeGPS(smach.State):
         return 'endReturnHomeGPS'
 
 def retGPS_cb(outcome_map):
-    if outcome_map['Angle_calc'] == 'angle_succeeded':
+    if outcome_map['RetHomeGPS'] == 'endReturnHomeGPS':
         return True
-    elif outcome_map['Angle_STOP'] == 'invalid':
+    elif outcome_map['RetHomeGPS_STOP'] == 'invalid':
         return True
     else:
         return False
 
 
 def retGPS_out_cb(outcome_map):
-    if outcome_map['Angle_STOP'] == 'invalid':
-        return 'angle_stop'
-    elif outcome_map['Angle_calc'] == 'angle_succeeded':
-        return 'angle_done'
+    if outcome_map['RetHomeGPS_STOP'] == 'invalid':
+        return 'gps_stop'
+    elif outcome_map['RetHomeGPS'] == 'endReturnHomeGPS':
+        return 'gps_done'
     else:
-        return 'angle_stop'
+        return 'gps_stop'
 ##
 class ReturnHomeArdu(smach.State):
     def __init__(self):
@@ -574,21 +573,21 @@ class ReturnHomeArdu(smach.State):
         return 'endReturnHomeArdu'
 
 def retGPSArdu_cb(outcome_map):
-    if outcome_map['Angle_calc'] == 'angle_succeeded':
+    if outcome_map['RetHomeGPSArdu'] == 'endReturnHomeArdu':
         return True
-    elif outcome_map['Angle_STOP'] == 'invalid':
+    elif outcome_map['RetHomeGPSArdu_STOP'] == 'invalid':
         return True
     else:
         return False
 
 
 def retGPSArdu_out_cb(outcome_map):
-    if outcome_map['Angle_STOP'] == 'invalid':
-        return 'angle_stop'
-    elif outcome_map['Angle_calc'] == 'angle_succeeded':
-        return 'angle_done'
+    if outcome_map['RetHomeGPSArdu_STOP'] == 'invalid':
+        return 'gps_stop'
+    elif outcome_map['RetHomeGPSArdu'] == 'endReturnHomeArdu':
+        return 'gps_done'
     else:
-        return 'angle_stop'
+        return 'gps_stop'
 ##
 class ReturnHomeTeleOp(smach.State):
     def __init__(self):
@@ -610,21 +609,21 @@ class ReturnHomeTeleOp(smach.State):
 
 
 def retTeleOp_cb(outcome_map):
-    if outcome_map['Angle_calc'] == 'angle_succeeded':
+    if outcome_map['RetTeleOp_calc'] == 'endReturnHomeTeleOp':
         return True
-    elif outcome_map['Angle_STOP'] == 'invalid':
+    elif outcome_map['RetTeleOp_STOP'] == 'invalid':
         return True
     else:
         return False
 
 
 def retTeleOp_out_cb(outcome_map):
-    if outcome_map['Angle_STOP'] == 'invalid':
-        return 'angle_stop'
-    elif outcome_map['Angle_calc'] == 'angle_succeeded':
-        return 'angle_done'
+    if outcome_map['RetTeleOp_STOP'] == 'invalid':
+        return 'TeleOp_stop'
+    elif outcome_map['RetTeleOp'] == 'endReturnHomeTeleOp':
+        return 'TeleOp_done'
     else:
-        return 'angle_stop'
+        return 'TeleOp_stop'
 ##
 class EmergencyStopReturn(smach.State):
     def __init__(self):
@@ -709,7 +708,7 @@ initEntry_concurrence = smach.Concurrence(outcomes=['preEntry_done','preEntry_st
                                       child_termination_cb = entry_cb,
                                       outcome_cb = entry_out_cb)
 ##
-interiorCartoGraphie_concurrence = smach.Concurrence(outcomes=['carto_done','carto_proc','carto_stop'],
+interiorCartoGraphie_concurrence = smach.Concurrence(outcomes=['carto_done','carto_proc'],
                                       default_outcome='carto_done',
                                       child_termination_cb = intercarto_cb,
                                       outcome_cb = intercarto_out_cb)
@@ -819,8 +818,7 @@ with sm_cal:
                                                                                       'endEmergCarto':'InteriorCarto'})
     #Interior cartographie
     smach.StateMachine.add('InteriorCarto',interiorCartoGraphie_concurrence ,transitions={'carto_done':'ExitBuilding',
-                                                                              'carto_proc':'ProceduralStop',
-                                                                              'carto_stop':'EmergencyStopCarto'})
+                                                                              'carto_proc':'ProceduralStop'})
 
     smach.StateMachine.add('ProceduralStop',procedural_stop_concurrence,transitions={'Proc_done':'InteriorCarto',
                                                                                      'Proc_stop':'EmergencyStopCarto'})
