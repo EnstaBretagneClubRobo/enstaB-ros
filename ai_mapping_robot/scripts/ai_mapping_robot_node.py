@@ -13,11 +13,18 @@ class Init(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo("init...")
+        #get Data for what to do, level of autonomous
         #wait for GPS
         #wait all First algo en ligne
         #verification branchement des sensors
-        #ccny hokuyo test mavros
+        #ccny hokuyo test mavros 
+        rospy.wait_for_service('start_node_srv')
+
+
+
+        rospy.wait_for_service('/camera_rgb_frame_tf/get_loggers')
         rospy.wait_for_service('/pwm_serial_send')
+        rospy.wait_for_service('/hokuyo_node/self_test')
         return 'endInit'
 #################################################################
 
@@ -437,6 +444,10 @@ def ShutdownCallback():
 
 def monitor_cb(ud, msg):
     return False
+
+##################################################################
+#################### Start of node ###############################
+##################################################################
 
 rospy.init_node('ai_mapping_robot')
 rospy.on_shutdown(ShutdownCallback)

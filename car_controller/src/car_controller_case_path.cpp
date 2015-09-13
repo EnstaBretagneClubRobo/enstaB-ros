@@ -35,10 +35,12 @@ void CarController::spinPath(){
   if (!receivedData)
     return;  
 
+  cases = waitCases;
+
   int size = cases.x.size();
   int i=0;
   
-  cases = waitCases;
+
 
   // check Drone Position in regards of points 
   startCheck  = true;//TODO should be multithreading protected

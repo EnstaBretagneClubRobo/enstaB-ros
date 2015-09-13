@@ -1,0 +1,10 @@
+bool type1 #Type of coordonate of first position True LatLong False UTM
+bool type2
+float64 xLont1
+float64 yLat1
+float64 xLont2
+float64 yLat2
+float64 threshold
+---
+bool response #True if distance smaller than threshold 
+
