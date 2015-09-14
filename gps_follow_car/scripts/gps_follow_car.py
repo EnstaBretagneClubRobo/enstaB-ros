@@ -7,8 +7,10 @@ import sensor_msgs
 from math import *
 from pwm_serial_py.srv import Over_int
 import LatLongUTMconversion as LLtoUTM
+from std_msgs.msg import String
+from gps_follow
 
-global cases
+global cases,start
 global trans1,rot1,speed_,kUv_,ku_,listener
 
 speed_ =1 
@@ -28,7 +30,7 @@ def calcGPS():
   if (!receivedData)
     return;  
 
-  size = len(cases[0]);
+  size = len(cases);
   i=0;
   
   cases = waitCases;
@@ -64,16 +66,20 @@ def sendCommand(channelSpeed,channelYaw):
 
 
 def spin(): 
-    global trans1,rot1
+    global trans1,rot1,cases,start
     try:
       (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
       countFail = 0 
     except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
       countFail = countFail+1
     if countFail > 10
-       print "error fatal"
-       #send ERROR
-    calcGPS()
+       ROS_INFO( "error fatal TF")
+       errorPub.publish(Empty())
+       start = 0
+    if not cases==[]:
+       if len(cases) == 1:
+          cases = [trans1[0],trans1[1]]+cases
+       calcGPS()
     rospy.sleep(1.0/20)
     
 def ShutdownCallback():
@@ -82,10 +88,30 @@ def ShutdownCallback():
 def casesCallBack(msg):
     print "gps point" 
     #transform to UTM
+    t1 = msg.data.split('\n')
+    cases = []
+    for line in t1:
+        t2 = line.split(";")
+        Lat = t2[0]
+        Long = t2[1]
+        (e,x,y) = LLtoUTM.LLtoUTM(Lat,Long)
+        cases.append([x,y])
 
+def start_gps_follow_cb(msg):
+    global start
+    start = msg.data
+
+start = 0
 rospy.init_node('gps_follow_car')
 rospy.on_shutdown(ShutdownCallback)
 listener = tf.TransformListener()
-    
+rospy.Subscriber('gps_string',String,casesCallback)
+errorPub = rospy.Publisher("/autonomous_error",Empty,auto_cb)
+
+rospy.Subscriber('start_gps_follow', Int8, start_gps_follow_cb)
+
+while not rospy.is_shutdown():
+   if start:
+      spin()
     
 
