@@ -9,20 +9,25 @@ global state #0 init 1 gps 2 gpsA 3teleop 4entry 5 carto 6 proc stop 7 exit 8 ex
 global dicNodeFail
 
 #error type 0:node failure 1:stuck 2:order from remote  
-
+kinect =["rgbd_manager","camera_rgb_frame_tf",
+         "camera_rgb_optical_frame","debayer",
+         "openni_driver","rgbd_image_proc"]
 dicNodeFail[0] = []
-dicNodeFail[1] = ["mavros","pwm_serial","ccny_openni","hokuyo_node"]
-dicNodeFail[2] = ["mavros","pwm_serial","ccny_openni","hokuyo_node"]
-dicNodeFail[3] = ["mavros","pwm_serial","ccny_openni","hokuyo_node"]
-dicNodeFail[4] = ["mavros","pwm_serial","ccny_openni","hokuyo_node"]
-dicNodeFail[5] = ["mavros","pwm_serial","ccny_openni","hokuyo_node","visual_odometry","keyframe_mapper_node","hector_mapping"]
-dicNodeFail[6] = ["mavros","pwm_serial","ccny_openni","hokuyo_node","visual_odometry","keyframe_mapper_node","hector_mapping"]
-dicNodeFail[7] = ["mavros","pwm_serial","ccny_openni","hokuyo_node","hector_mapping"]
-dicNodeFail[8] = ["mavros","pwm_serial","ccny_openni","hokuyo_node"]
-dicNodeFail[9] = ["mavros","pwm_serial","ccny_openni","hokuyo_node"]
-dicNodeFail[10] = ["mavros","pwm_serial","ccny_openni","hokuyo_node"]
-dicNodeFail[11] = ["mavros","pwm_serial","ccny_openni","hokuyo_node"]
+dicNodeFail[1] = ["mavros","pwm_serial","hokuyo_node"]+kinect
+dicNodeFail[2] = ["mavros","pwm_serial","hokuyo_node"]+kinect
+dicNodeFail[3] = ["mavros","pwm_serial","hokuyo_node"]+kinect
+dicNodeFail[4] = ["mavros","pwm_serial","hokuyo_node"]+kinect
+dicNodeFail[5] = ["mavros","pwm_serial","hokuyo_node",
+                  "visual_odometry","keyframe_mapper_node","hector_mapping"]+kinect
+dicNodeFail[6] = ["mavros","pwm_serial","hokuyo_node",
+                  "visual_odometry","keyframe_mapper_node","hector_mapping"]+kinect
+dicNodeFail[7] = ["mavros","pwm_serial","hokuyo_node","hector_mapping"]+kinect
+dicNodeFail[8] = ["mavros","pwm_serial","hokuyo_node"]+kinect
+dicNodeFail[9] = ["mavros","pwm_serial","hokuyo_node"]+kinect
+dicNodeFail[10] = ["mavros","pwm_serial","hokuyo_node"]+kinect
+dicNodeFail[11] = ["mavros","pwm_serial","hokuyo_node"]+kinect
 
+neededNode = ["proxy_eura_smach"]
 
 def ShutdownCallback():
     print 'shutdown' #send stop messages 
@@ -46,17 +51,21 @@ def stuck_cb(msg):
     if [1,2,4,5,7,9,10]
     errorPub.publish(ErrorMessage(type1=1,int1=msg.data))
 
-def drift_cb
+def drift_cb(msg):
     if [5,7].count[state]:
        errorPub.publish(ErrorMessage(type1=1))
 
-rospy.init_node('gps_follow_car')
+def remote_stop_cb(msg):
+    errorPub.publish(ErrorMessage(type1=2,int1=0))
+
+rospy.init_node('proxy_eura_smach')
 rospy.on_shutdown(ShutdownCallback)
 errorPub = rospy.Publisher("/stop_command",ErrorMessage)
 rospy.Subscriber("/set_state_proxy",Int8,setActualState)
 
 rospy.Subscriber("/failing_node",String,failing_node_cb)
 rospy.Subscriber("/remote_change_teleop",Empty,remote_change_cb)
+rospy.Subscriber("/remote_stop",Empty,remote_stop_cb)
 rospy.Subscriber("/stuck_msg",Int8,stuck_cb)
 rospy.Subscriber("/drift_msg",Empty,drift_cb)
 
