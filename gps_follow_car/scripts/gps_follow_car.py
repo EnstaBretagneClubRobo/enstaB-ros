@@ -106,7 +106,7 @@ rospy.init_node('gps_follow_car')
 rospy.on_shutdown(ShutdownCallback)
 listener = tf.TransformListener()
 rospy.Subscriber('gps_string',String,casesCallback)
-errorPub = rospy.Publisher("/autonomous_error",Empty,auto_cb)
+errorPub = rospy.Publisher("/autonomous_error",Empty)
 
 rospy.Subscriber('start_gps_follow', Int8, start_gps_follow_cb)
 
