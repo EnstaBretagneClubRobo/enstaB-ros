@@ -9,19 +9,20 @@ import std_srvs.srv as sSrv
 from gps_handler.srv import *
 from proxy_eura_smach.msg import ErrorMessage
 import waiter_subscriber as WS
+from ai_mapping_robot.msg import InitData
 
-global autonomous_level #0 teleOP 1semi autonomous  2 full autonomous
+global initData #0 teleOP 1semi autonomous  2 full autonomous
 global waitGPSData
 
-global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
-
+global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,listener
 ############# INITIALISATION ###################################
 class Init(smach.State):  
     def __init__(self):
         smach.State.__init__(self, outcomes=['endInitGPS','endInitGPSArdu','endInitTeleOp'])
+        
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener
         
         statePub.publish(String("Initialisation"))
         stateInterPub.publish(Int8(0))
@@ -31,28 +32,21 @@ class Init(smach.State):
         #verification branchement des sensors
         #ccny hokuyo test mavros 
         #rospy.wait_for_service('start_node_srv')
-        #wait parameter
-
         #rospy.wait_for_service('/camera_rgb_frame_tf/get_loggers')
         #rospy.wait_for_service('/pwm_serial_send')
         #rospy.wait_for_service('/hokuyo_node/self_test')
         #rospy.wait_for_service('IsNear')
         
         
-        autonomous_level=0
+        #wait parameter
         
-        if not autonomous_level:
+        initData = WS.waitForInitData(2*60)
+        if initData=='Error':
+           exit(0)
+
+        if not initData == initData.autonomous_level:
               return 'endInitTeleOp'
 
-        start= rospy.get_time()
-        
-        while  rospy.get_time()-start < 5*60  and not gpsdata:
-                 rospy.sleep(1.0/20.0)
-
-        if not gpsdata:
-           autonomous_level = 0
-           return 'endInitTeleOp'
-     
         start= rospy.get_time()
         try:
           (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
@@ -72,7 +66,7 @@ class Init(smach.State):
         ROS_INFO("Wait gps")
         while rospy.get_time()-start < 5*60 and not res:#wait for GPS for 5 min
              try:
-                (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+                (trans1,rot1) = listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
              except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                 continue
              msgSRV.xLont1 = trans1[0]
@@ -90,7 +84,7 @@ class GoBuildingGPS(smach.State):
         smach.State.__init__(self, outcomes=['gps_done'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener
         statePub.publish(String("GoBuildingGPS"))
         stateInterPub.publish(Int8(1))
         servStartDiag()
@@ -139,7 +133,7 @@ class GoBuildingGPS(smach.State):
                 return 'preempted'
 
              try:
-                (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+                (trans1,rot1) = listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
              except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                 continue
              msgSRV.xLont1 = trans1[0]
@@ -174,7 +168,7 @@ class GoBuildingGPSArdu(smach.State):
         smach.State.__init__(self, outcomes=['endGoBuilding'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener
         rospy.loginfo("GoBuilfingGPSArdu")
         statePub.publish(String("GoBuildingGPSArdu"))
         stateInterPub.publish(Int8(2))
@@ -199,7 +193,7 @@ class GoBuildingGPSArdu(smach.State):
                 self.service_preempt()
                 return 'preempted'
              try:
-                (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+                (trans1,rot1) = listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
              except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                 continue
              msgSRV.xLont1 = trans1[0]
@@ -207,6 +201,7 @@ class GoBuildingGPSArdu(smach.State):
              res = is_near_srv(msgSRV).response
              #if end algo change algo to direct one
         #stop autonomous ardu
+        WS.sendCommand(1500,1500)
         servStartDiag()
         return 'endGoBuilding'
 
@@ -232,7 +227,7 @@ class GoBuildingTeleOp(smach.State):
         smach.State.__init__(self, outcomes=['endGoBuilding'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData
         statePub.publish(String("GoBuildingTeleOp"))
         stateInterPub.publish(Int8(3))
         servStartDiag()
@@ -271,7 +266,8 @@ class EmergencyStopGo(smach.State):
         smach.State.__init__(self, outcomes=['endEmergPrepEntry','endEmergTeleOp','endEmergGPSArdu','endEmergGPS'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData
+        WS.sendCommand(1500,1500)
         servStartDiag()
         statePub.publish(String("EmergencyStopGo"))
         rospy.loginfo("EmergencyStopGo")
@@ -290,13 +286,15 @@ class InitEntryBuilding(smach.State):
         smach.State.__init__(self, outcomes=['endEntryBuilding'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener
         statePub.publish(String("InitEntryBuilding"))
         stateInterPub.publish(Int8(4))
         servStartDiag()
+        WS.sendCommand(1500,1500)
         rospy.loginfo("InitEntryBuilding")
        #check if orentation send
         #checkorientation
+        WS.findHeading(listener,initData.heading):
         #calc size map needed
         #make sure Cytron is good
         #launch ccny hector static
@@ -326,7 +324,8 @@ class EmergencyStopEntry(smach.State):
         smach.State.__init__(self, outcomes=['endEmergPrep','endEmergCarto'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData
+        WS.sendCommand(1500,1500)
         servStartDiag()
         statePub.publish(String("EmergencyStopEntry"))
         rospy.loginfo("EmergencyStopEntry")
@@ -343,7 +342,7 @@ class CartographieBuilding(smach.State):
         smach.State.__init__(self, outcomes=['endCartographieBuilding'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,cartoExitMode
         statePub.publish(String("CartographyBuilding"))
         stateInterPub.publish(Int8(5))
         servStartDiag()
@@ -352,14 +351,18 @@ class CartographieBuilding(smach.State):
         #start algo deplacement       
         #if not teleOp launch algo point gps donne a l'avance ou lit ici
         #needed PKG : ccny hector hokuyo pwm_serial_send car_controller (astar_path) 
+        cartoExitMode =0 #mode preempted
         cartoEnd = 1
-        while not cartoEnd:#send by callback
+        start = rospy.get_time()
+        while rospy.get_time()-start<2*60:#send by callback
             if self.preempt_requested():
                 ROS_INFO("interior Cartographie is being preempted")
                 self.service_preempt()
                 servStartDiag()
                 return 'preempted'
             rospy.sleep(1.0/20.0)
+        cartoExitMode = 1 #mode normal
+        WS.sendCommand(1500,1500)
         servStartDiag()
         return 'endCartographieBuilding'
 
@@ -385,9 +388,10 @@ class ProceduralStop(smach.State):
         smach.State.__init__(self, outcomes=['Proc_done','Proc_stop'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData
         statePub.publish(String("ProceduralStop"))
         stateInterPub.publish(Int8(6))
+        WS.sendCommand(1500,1500)
         servStartDiag()
         rospy.loginfo("ProceduralStop")
         #need restart algo ?
@@ -422,7 +426,8 @@ class EmergencyStopInt(smach.State):
         smach.State.__init__(self, outcomes=['endEmer_Exit','endEmer_Proc','endEmer_Carto'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData
+        WS.sendCommand(1500,1500)
         servStartDiag()
         statePub.publish(String("EmergencyStopInt"))   
         rospy.loginfo("EmergencyStopInt")
@@ -443,13 +448,13 @@ class ExitBuilding(smach.State):
         smach.State.__init__(self, outcomes=['endExitBuilding'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener
         statePub.publish(String("ExitBuilding"))
         stateInterPub.publish(Int8(7))
         servStartDiag()
         rospy.loginfo("ExitBuilding")
-        autonomous_level = 0
-        if not autonomous_level:
+        initData.autonomous_level = 0
+        if not initData.autonomous_level:
            servStartDiag()
            return 'teleop' 
         #start algo deplacement       
@@ -471,12 +476,13 @@ class ExitBuilding(smach.State):
                 self.service_preempt()
                 return 'preempted'
              try:
-                (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+                (trans1,rot1) = listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
              except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                 continue
              msgSRV.xLont1 = trans1[0]
              msgSRV.yLat1 = trans1[1]
              res = is_near_srv(msgSRV).response
+        WS.sendCommand(1500,1500)
         servStartDiag()
         return 'endExitBuilding'
 
@@ -520,6 +526,7 @@ class ExitBuildingTeleOp(smach.State):
              rospy.sleep(1.0/20.0)
         #needed PKG  pwm_serial_send mavros gps ?
         servStartDiag()
+        WS.sendCommand(1500,1500)
         return 'endExitBuilding'
 
 def exitTeleOp_cb(outcome_map):
@@ -544,7 +551,8 @@ class EmergencyStopExit(smach.State):
         smach.State.__init__(self, outcomes=['endEmer_Exit','endEmer_End'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData
+        WS.sendCommand(1500,1500)
         servStartDiag()
         rospy.loginfo("EmergencyStopInt")
         #make sure Cytron is good
@@ -564,7 +572,7 @@ class EndExitBuilding(smach.State):
         smach.State.__init__(self, outcomes=['endEx_CartoGPS','endEx_CartoGPSArdu','endEx_CartoTeleOp'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData
         statePub.publish(String("EndExit"))
         stateInterPub.publish(Int8(9))
         servStartDiag()
@@ -585,7 +593,7 @@ class ReturnHomeGPS(smach.State):
         smach.State.__init__(self, outcomes=['endReturnHomeGPS'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData, listener
         statePub.publish(String("ReturnHomeGPS"))
         stateInterPub.publish(Int8(10))
         servStartDiag()
@@ -631,7 +639,7 @@ class ReturnHomeGPS(smach.State):
                 return 'preempted'
 
              try:
-                (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+                (trans1,rot1) = listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
              except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                 continue
              msgSRV.xLont1 = trans1[0]
@@ -640,6 +648,7 @@ class ReturnHomeGPS(smach.State):
              #if end algo change algo to direct one
         r.publish(Int8(0))
         r.unregister()
+        WS.sendCommand(1500,1500)
         servStartDiag()
         return 'endReturnHomeGPS'
 
@@ -665,7 +674,7 @@ class ReturnHomeArdu(smach.State):
         smach.State.__init__(self, outcomes=['endReturnHomeArdu'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener
         statePub.publish(String("ReturnHomeArdu"))
         stateInterPub.publish(Int8(11))
         servStartDiag()
@@ -693,7 +702,7 @@ class ReturnHomeArdu(smach.State):
                 self.service_preempt()
                 return 'preempted'
              try:
-                (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+                (trans1,rot1) = listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
              except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                 continue
              msgSRV.xLont1 = trans1[0]
@@ -701,6 +710,7 @@ class ReturnHomeArdu(smach.State):
              res = is_near_srv(msgSRV).response
              #if end algo change algo to direct one
         #stop autonomous ardu
+        WS.sendCommand(1500,1500)
         servStartDiag()
         return 'endReturnHomeArdu'
 
@@ -726,7 +736,7 @@ class ReturnHomeTeleOp(smach.State):
         smach.State.__init__(self, outcomes=['endReturnHomeTeleOp'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData
         statePub.publish(String("ReturnHomeTeleOp"))
         stateInterPub.publish(Int8(12))
         servStartDiag()
@@ -742,6 +752,7 @@ class ReturnHomeTeleOp(smach.State):
                 self.service_preempt()
                 return 'preempted'
             rospy.sleep(1.0/20.0)
+        WS.sendCommand(1500,1500)
         servStartDiag()
         return 'endReturnHomeTeleOp'
 
@@ -768,7 +779,8 @@ class EmergencyStopReturn(smach.State):
         smach.State.__init__(self, outcomes=['endEmergGPS','endEmergGPSArdu','endEmergTeleOp','endEmergEnd'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData
+        WS.sendCommand(1500,1500)
         servStartDiag()
         rospy.loginfo("EmergencyStopInt")
         #make sure Cytron is good
@@ -777,46 +789,20 @@ class EmergencyStopReturn(smach.State):
         return 'endEmergencyStopInt'
 
 ###################################################################
-################### Failed Node Monitoring ########################
+################### Failed Node Monitoring #########################To Delete
 ###################################################################
-def goBGPS_monitoring(ud, msg):
-    checkNode = ['mavros','pwm_serial']
+def monitoring(ud, msg):
+    
+    return False
 
-def goBGPSA_monitoring(ud,msg):
-    print "t"
-
-def goBTeleOp_monitoring(ud, msg):
-    print "t"
-
-def prepEntry_monitoring(ud, msg):
-    print "t"
-
-def intercarto_monitoring(ud, msg):
-    print "t"
-
-def procStop_monitoring(ud, msg):
-    print "t"
-
-def exitB_monitoring(ud, msg):
-    print "t"
-
-def exitBTeleOp_monitoring(ud, msg):
-    print "t"
-
-def retGPS_monitoring(ud, msg):
-    print "t"
-
-def retGPSA_monitoring(ud, msg):
-    print "t"
-
-def retTeleOp_monitoring(ud, msg):
-    print "t"
 
 ###################################################################
 def ShutdownCallback():
     print "shutdown"
 
-def monitor_cb(ud, msg):
+def monitor_cb(ud, msg):  
+    global error_message
+    error_message = msg
     return False
 
 ##################################################################
@@ -1002,6 +988,7 @@ stateInterPub = rospy.Publisher("/set_state_proxy",Int8)
 statePub = rospy.Publisher("/State_Publisher",String)
 servStartDiag = rospy.ServiceProxy('start_diag', sSrv.Empty)
 is_near_srv = rospy.ServiceProxy('IsNear', IsNear)
+listener = tf.TransformListener()
 sis.start()
 outcome = sm_cal.execute()
 #rospy.spin()

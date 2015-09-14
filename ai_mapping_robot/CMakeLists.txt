@@ -12,20 +12,19 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   roscpp
   rospy
-  std_msgs
   smach_ros
   smach
+  ai_mapping_robot
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+   FILES
+   InitData.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -42,10 +41,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   geometry_msgs#   nav_msgs#   std_msgs
-# )
+generate_messages(
+   DEPENDENCIES
+std_msgs geometry_msgs#   nav_msgs#   
+)
 
 ###################################
 ## catkin specific configuration ##
