@@ -10,6 +10,9 @@ from gps_handler.srv import *
 from proxy_eura_smach.msg import ErrorMessage
 import waiter_subscriber as WS
 from ai_mapping_robot.msg import InitData
+import math as m
+import LatLongUTMconversion as LLtoUTM
+
 
 global initData #0 teleOP 1semi autonomous  2 full autonomous
 global waitGPSData
@@ -27,8 +30,6 @@ class Init(smach.State):
         statePub.publish(String("Initialisation"))
         stateInterPub.publish(Int8(0))
         rospy.loginfo("init...")
-        #get Data for what to do, level of autonomous
-        
         #verification branchement des sensors
         #ccny hokuyo test mavros 
         #rospy.wait_for_service('start_node_srv')
@@ -40,6 +41,7 @@ class Init(smach.State):
         
         #wait parameter
         
+        #get Data for what to do, level of autonomous
         initData = WS.waitForInitData(2*60)
         if initData=='Error':
            exit(0)
@@ -52,8 +54,8 @@ class Init(smach.State):
           (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
           exit(0)
-        Lat = 10,600
-        Long = 42,4555
+        Lat = 42.954306
+        Long = 10.599778
         msgSRV = IsNearRequest()
         msgSRV.type1 = 0
         msgSRV.type2 = 1
@@ -118,8 +120,8 @@ class GoBuildingGPS(smach.State):
         msgSRV = IsNearRequest()
         msgSRV.type1 = 0
         msgSRV.type2 = 1
-        msgSRV.xLont1 = trans1[0]
-        msgSRV.yLat1 = trans1[1]
+        msgSRV.xLont1 = 11
+        msgSRV.yLat1 = 45
         msgSRV.xLont2 = Long
         msgSRV.yLat2 = Lat
         msgSRV.threshold = 1
@@ -176,18 +178,18 @@ class GoBuildingGPSArdu(smach.State):
         #wait for GPS waipoint(s)
         #tell ardu GPS waypoint 
         #launch algo colour movie recorder
-        Lat = 10,600#last coord
-        Long = 42,4555
+        Long = 10,600#last coord
+        Lat = 42,4555
         msgSRV = IsNearRequest()
         msgSRV.type1 = 0
         msgSRV.type2 = 1
-        msgSRV.xLont1 = trans1[0]
-        msgSRV.yLat1 = trans1[1]
+        msgSRV.xLont1 = 11
+        msgSRV.yLat1 = 45
         msgSRV.xLont2 = Long
         msgSRV.yLat2 = Lat
         msgSRV.threshold = 1
         res = is_near_srv(msgSRV).response
-        while not res:#wait for GPS for 5 min
+        while not res:#while we're not 1m close to gps location
              if self.preempt_requested():
                 ROS_INFO("Go building GPS Ardu is being preempted")
                 self.service_preempt()
@@ -233,7 +235,9 @@ class GoBuildingTeleOp(smach.State):
         servStartDiag()
         rospy.loginfo("GoBuildingTeleOp")
         #needed PKG pwm_serial_send ccny
-        # signal to end  
+        # signal to end 
+        global teleOpGOend
+        s = rospy.Subscriber('/restart_msg',Empty,remoteCallback) 
         teleOpGOend = 1
         while not teleOpGOend:#send by callback
             if self.preempt_requested():
@@ -241,8 +245,13 @@ class GoBuildingTeleOp(smach.State):
                 self.service_preempt()
                 return 'preempted'
             rospy.sleep(1.0/20.0)
+        s.unregister()
         servStartDiag()
         return 'endGoBuilding'
+
+def remoteCallback(msg):
+    global teleOpGOend
+    teleOpGOend = 0
 
 def goBTeleOp_cb(outcome_map):
     if outcome_map['TeleOp'] == 'endGoBuilding':
@@ -271,10 +280,10 @@ class EmergencyStopGo(smach.State):
         servStartDiag()
         statePub.publish(String("EmergencyStopGo"))
         rospy.loginfo("EmergencyStopGo")
-        #send 1500 1500
         #make sure Cytron is good
         #start algo deplacement       
         #needed PKG pwm_serial_send 
+        WS.waitForRemote(60*60)
         return 'endEmergencyStopGo'
 
 ##################################################################
@@ -292,11 +301,96 @@ class InitEntryBuilding(smach.State):
         servStartDiag()
         WS.sendCommand(1500,1500)
         rospy.loginfo("InitEntryBuilding")
-       #check if orentation send
-        #checkorientation
-        WS.findHeading(listener,initData.heading):
+        
+        
+ 
+        #check if orentation send
+        lat1=42.954303
+        long1 = 10.599793
+        (e,xB1,yB1) = LLtoUTM(lat1,long1)#west north end
+        lat2 = 42.954285
+        long2 = 10.600006
+        (e,xB2,yB2) = LLtoUTM(lat2,long2)#east north end
+        lat3 = 42.954209 #not the end of the building
+        long3 = 10.599991
+        (e,xB3,yB3) = LLtoUTM(lat3,long3)
+        lat4 = 42.954093  #not the end of the building
+        long4 = 10.599861
+        (e,xB4,yB4) = LLtoUTM(lat4,long4)
+        ############ Setting for init Map ######################
+        
+        largeur1 = m.sqrt((xB1-xB2)**2+(yB1-yB2)**2)
+        a1 = yB2-yB1
+        b1 = xB1-xB2
+        c1 = -(b1.yB1+a1.xB2)
+        longeur1 = abs(a1*xB4+b1*yB4+c1)/(m.sqrt(a1**2+b1**2)
+        a1 = yB2-yB1
+        b1 = xB1-xB2
+        c1 = -(b1.yB1+a1.xB2)
+        a2 = yB2-yB3
+        b2 = xB3-xB2
+        c2 = -(b2.yB3+a2.xB3)
+        d1 = abs(a1*trans1[0]+b1*trans[1]+c1)/(m.sqrt(a1**2+b1**2)
+        d2 = abs(a2*trans1[0]+b2*trans[1]+c2)/(m.sqrt(a2**2+b2**2)
+        angle1 = atan(a1)+m.pi/2.0+m.pi;
+        angle2 = angle1+m.pi
+        angle3 = atan(a1)
+        ########################
+        heading = [angle1,angle2,angle3]
+        if initData.autonomous_level 
+           WS.findHeading(listener,heading[initData.heading]): 
+        else:  #if teleOp wiat for signal from remote to indicate that we are in good position
+           WS.waitForRemote(60)
         #calc size map needed
-        #make sure Cytron is good
+        Lat = 42.954306
+        Long = 10.599778#coordonate of building
+        msgSRV = IsNearRequest()
+        msgSRV.type1 = 0
+        msgSRV.type2 = 1
+        msgSRV.xLont1 = 11
+        msgSRV.yLat1 = 45
+        msgSRV.xLont2 = Long
+        msgSRV.yLat2 = Lat
+        msgSRV.threshold = 20
+        res = 0
+        while not res and rospy.get_time()-start<1*60:#wait for GPS for 1 min
+             if self.preempt_requested():
+                ROS_INFO("Go building GPS Ardu is being preempted")
+                self.service_preempt()
+                return 'preempted'
+             try:
+                (trans1,rot1) = listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                continue
+             msgSRV.xLont1 = trans1[0]
+             msgSRV.yLat1 = trans1[1]
+             res = is_near_srv(msgSRV).response
+
+
+        if initData.heading == 0:
+          widthMap = largeur1+6
+          heigthMap = d1+longueur1+1+2
+          dist = max(widthMap,heigthMap)
+          poseY = 1/dist
+          poseX = (dist-(3+d2))/dist
+        elif initData.heading == 1: 
+          widthMap = largeur1+d2+1+2
+          heigthMap = longueur1+6
+          dist = max(widthMap,heigthMap)
+          poseY = (3+d1)/dist
+          poseX = 1/dist
+        elif initData.heading == 2:
+          widthMap = d2+1+2
+          heigthMap = longueur1+6
+          dist = max(widthMap,heigthMap)
+          poseY = (dist-d1-3)/heightMap
+          poseX = 1/dist
+        else:
+          dist = largeur1*2.1
+          poseX=0.5
+          poseY=0.5
+        w = dist/0.05
+        os.system("ruby /home/nuc1/ruby/launchFilecreate.rb %d %d %d %d"%(w,poseX,poseY)
         #launch ccny hector static
         #needed PKG mavros diagnostic
         servStartDiag()
@@ -332,6 +426,7 @@ class EmergencyStopEntry(smach.State):
         #make sure Cytron is good
         #start algo deplacement       
         #needed PKG
+        WS.waitForRemote(60*60)
         return 'endEmergencyStopEntry'
 ###################################################################
 
@@ -434,6 +529,7 @@ class EmergencyStopInt(smach.State):
         #make sure Cytron is good
         #check algo state       
         #needed PKG sauvegarde ?
+        WS.waitForRemote(60*60)
         return 'endEmergencyStopInt'
 
 
@@ -558,6 +654,7 @@ class EmergencyStopExit(smach.State):
         #make sure Cytron is good
         #start algo deplacement       
         #needed PKG sauvegarde ?
+        WS.waitForRemote(60*60)
         return 'endEmergencyStopInt'
 
 
@@ -580,6 +677,7 @@ class EndExitBuilding(smach.State):
         #make sure Cytron is good
         #start algo deplacement       
         #needed PKG sauvegarde ?
+        
         servStartDiag()
         return 'endEx_CartoTeleOp'
 
@@ -624,8 +722,8 @@ class ReturnHomeGPS(smach.State):
         msgSRV = IsNearRequest()
         msgSRV.type1 = 0
         msgSRV.type2 = 1
-        msgSRV.xLont1 = trans1[0]
-        msgSRV.yLat1 = trans1[1]
+        msgSRV.xLont1 = 11
+        msgSRV.yLat1 = 45
         msgSRV.xLont2 = Long
         msgSRV.yLat2 = Lat
         msgSRV.threshold = 1
@@ -690,8 +788,8 @@ class ReturnHomeArdu(smach.State):
         msgSRV = IsNearRequest()
         msgSRV.type1 = 0
         msgSRV.type2 = 1
-        msgSRV.xLont1 = trans1[0]
-        msgSRV.yLat1 = trans1[1]
+        msgSRV.xLont1 = 11
+        msgSRV.yLat1 = 45
         msgSRV.xLont2 = Long
         msgSRV.yLat2 = Lat
         msgSRV.threshold = 1
@@ -745,14 +843,16 @@ class ReturnHomeTeleOp(smach.State):
         #start algo deplacement       
         #needed PKG mavros pwm_serial_send 
         # signal to end 
-        teleOpGOend =1 
+        global teleOpGOend
+        s = rospy.Subscriber('/restart_msg',Empty,remoteCallback) 
+        teleOpGOend = 1
         while not teleOpGOend:#send by callback
             if self.preempt_requested():
-                ROS_INFO("Exit Building is being preempted")
+                ROS_INFO("Go building TeleOp is being preempted")
                 self.service_preempt()
                 return 'preempted'
             rospy.sleep(1.0/20.0)
-        WS.sendCommand(1500,1500)
+        s.unregister()
         servStartDiag()
         return 'endReturnHomeTeleOp'
 
@@ -786,6 +886,7 @@ class EmergencyStopReturn(smach.State):
         #make sure Cytron is good
         #start algo deplacement       
         #needed PKG sauvegarde ?
+        WS.waitForRemote(60*60)
         return 'endEmergencyStopInt'
 
 ###################################################################

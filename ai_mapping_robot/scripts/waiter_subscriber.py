@@ -29,6 +29,7 @@ def waitForInitData(time):
     s = rospy.Subscriber('init_data',InitData,initDataCallback)
     while waitInitDataMsg and rospy.get_time()-start < time:
         rospy.sleep(1.0/20.0)
+    s.unregister()
     if not waitInitDataMsg:
         return initDataMsg
     else: 
@@ -57,6 +58,7 @@ def waitForGPSData(AI,time):
                 AI.service_preempt()
                 return 'preempted'
         rospy.sleep(1.0/20.0)
+    s.unregister()
     if not waitGPSData:
         return lastGPS
     else: 
@@ -88,7 +90,41 @@ def sendCommand(channelSpeed,channelYaw):
     try:
         send_pwm = rospy.ServiceProxy('/pwm_serial_send',Over_int)
         resp1 = send_pwm([channelSpeed,0,channelYaw,0,0,0,0,0])
+        send_pwm.unregister()
         return resp1.result
     except rospy.ServiceException, e:
         print "Service call failed : %s"%e
+
+def dataCallback(msg):
+    global waitDataMsg
+    waitDataMsg = 0
+
+def waitForRemote(time):
+    global waitDataMsg
+    start = rospy.get_time()
+    waitDataMsg = 1
+    rospy.loginfo("wait InitData ...")
+    s = rospy.Subscriber('/placed_for_carto',Empty,dataCallback)
+    while waitDataMsg and rospy.get_time()-start < time:
+        rospy.sleep(1.0/20.0)
+    s.unregister()
+    return not waitDataMsg
+
+
+############ Restart #########################
+def remoteCallback(msg):
+    global waitRestartMsg
+    waitRestartMsg = 0
+
+def waitForRemote(time):
+    global waitRestartMsg
+    start = rospy.get_time()
+    waitRestartMsg = 1
+    rospy.loginfo("wait InitData ...")
+    s = rospy.Subscriber('/restart_msg',Empty,remoteCallback)
+    while waitRestartMsg and rospy.get_time()-start < time:
+        rospy.sleep(1.0/20.0)
+    s.unregister()
+    return not waitRestartMsg
+
     
