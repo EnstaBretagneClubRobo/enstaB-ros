@@ -12,7 +12,7 @@ import waiter_subscriber as WS
 from ai_mapping_robot.msg import InitData
 import math as m
 import LatLongUTMconversion as LLtoUTM
-
+import tf
 
 global initData #0 teleOP 1semi autonomous  2 full autonomous
 global waitGPSData
@@ -32,13 +32,16 @@ class Init(smach.State):
         rospy.loginfo("init...")
         #verification branchement des sensors
         #ccny hokuyo test mavros 
+        os.system("rosrun hokuyo_node hokuyo_node /dev/sensors/hokuyo_ &")
+        os.system("roslaunch ccny_openni openni.launch &")
+        os.system("roslaunch support.launch &")#gps_handler start_node diagnostic drift_detection mode stuck rc_receive state_integrateur  proxy_eura_smach
+        os.system("rosrun pwm_send pwm_serial_py_node &")
+        os.system("roslaunch mavros apm2_radio.launch &")
         #rospy.wait_for_service('start_node_srv')
-        #rospy.wait_for_service('/camera_rgb_frame_tf/get_loggers')
+        #rospy.wait_for_service('/camera_rgb_frame_tf/get_loggers') then movie_save
         #rospy.wait_for_service('/pwm_serial_send')
         #rospy.wait_for_service('/hokuyo_node/self_test')
-        #rospy.wait_for_service('IsNear')
-        
-        
+        #rospy.wait_for_service('/IsNear') 
         #wait parameter
         
         #get Data for what to do, level of autonomous
@@ -46,7 +49,7 @@ class Init(smach.State):
         if initData=='Error':
            exit(0)
 
-        if not initData == initData.autonomous_level:
+        if not initData.autonomous_level:
               return 'endInitTeleOp'
 
         start= rospy.get_time()
@@ -323,22 +326,22 @@ class InitEntryBuilding(smach.State):
         a1 = yB2-yB1
         b1 = xB1-xB2
         c1 = -(b1.yB1+a1.xB2)
-        longeur1 = abs(a1*xB4+b1*yB4+c1)/(m.sqrt(a1**2+b1**2)
+        longeur1 = abs(a1*xB4+b1*yB4+c1)/(m.sqrt(a1**2+b1**2))
         a1 = yB2-yB1
         b1 = xB1-xB2
         c1 = -(b1.yB1+a1.xB2)
         a2 = yB2-yB3
         b2 = xB3-xB2
         c2 = -(b2.yB3+a2.xB3)
-        d1 = abs(a1*trans1[0]+b1*trans[1]+c1)/(m.sqrt(a1**2+b1**2)
-        d2 = abs(a2*trans1[0]+b2*trans[1]+c2)/(m.sqrt(a2**2+b2**2)
+        d1 = abs(a1*trans1[0]+b1*trans[1]+c1)/(m.sqrt(a1**2+b1**2))
+        d2 = abs(a2*trans1[0]+b2*trans[1]+c2)/(m.sqrt(a2**2+b2**2))
         angle1 = atan(a1)+m.pi/2.0+m.pi;
         angle2 = angle1+m.pi
         angle3 = atan(a1)
         ########################
         heading = [angle1,angle2,angle3]
-        if initData.autonomous_level 
-           WS.findHeading(listener,heading[initData.heading]): 
+        if initData.autonomous_level:
+           WS.findHeading(listener,heading[initData.heading])
         else:  #if teleOp wiat for signal from remote to indicate that we are in good position
            WS.waitForRemote(60)
         #calc size map needed
@@ -390,7 +393,7 @@ class InitEntryBuilding(smach.State):
           poseX=0.5
           poseY=0.5
         w = dist/0.05
-        os.system("ruby /home/nuc1/ruby/launchFilecreate.rb %d %d %d %d"%(w,poseX,poseY)
+        os.system("ruby /home/nuc1/ruby/launchFilecreate.rb %d %d %d %d"%(w,poseX,poseY))
         #launch ccny hector static
         #needed PKG mavros diagnostic
         servStartDiag()
@@ -890,7 +893,11 @@ class EmergencyStopReturn(smach.State):
         return 'endEmergencyStopInt'
 
 ###################################################################
-################### Failed Node Monitoring #########################To Delete
+
+def changeInitData_cb(req):
+    global initData
+    initData.heading = req.data
+    return ChangeInitDataResponse()
 ###################################################################
 def monitoring(ud, msg):
     
@@ -899,7 +906,9 @@ def monitoring(ud, msg):
 
 ###################################################################
 def ShutdownCallback():
-    print "shutdown"
+    global sis
+    sis.stop()
+    rospy.loginfo("shutdown state machine")
 
 def monitor_cb(ud, msg):  
     global error_message
@@ -912,6 +921,8 @@ def monitor_cb(ud, msg):
 
 rospy.init_node('ai_mapping_robot')
 rospy.on_shutdown(ShutdownCallback)
+
+serv = rospy.Service('change_initData', ChangeInitData, changeInitData_cb)
 sm_cal = smach.StateMachine(outcomes=['endMapping'])
 
 ##
@@ -1082,7 +1093,7 @@ with sm_cal:
                                                                                     'endEmergTeleOp':'ReturnTeleOp',
                                                                                     'endEmergEnd':'endMapping'})
 
-
+global sis
 sis = smach_ros.IntrospectionServer('AI_EURATHLON', sm_cal, '/GENERAL_BEHAVIOUR')
 selfErrorPub = rospy.Publisher("/stop_command",ErrorMessage)
 stateInterPub = rospy.Publisher("/set_state_proxy",Int8)
