@@ -4,7 +4,7 @@ import rosnode
 import os
 import re
 from start_node.msg import StartKillMsg
-from std_mgs import Empty
+from std_srvs.srv import Empty
 
 global kinect 
 kinect =["camera_rgb_frame_tf",
@@ -25,18 +25,25 @@ def startLaunch(pkg,launchfile):
    os.system(command)
     
 def startRun(pkg,exe,arg=""):
-    command = "roslaunch %s %s %s &"%(pkg,exe,arg)
+    command = "rosrun %s %s %s &"%(pkg,exe,arg)
     os.system(command)
 
-def startRun(Args):
+def startRun1(Args):
     startRun(Args[0],Args[1],Args[2])
+
+def startLaunch1(args):
+    startLaunch(args[0],args[1])
 
 def killLaunch(props):
     for i in props[2]:
          killNode(i)
 
 def killRun(props):
-    killNode(props[1])
+    reg = re.compile('.*\.py')
+    if reg.match(props[1]):
+       killNode(props[1].split('.py')[0])
+    else:
+       killNode(props[1])
 
 def dummy(msg):
     rospy.loginfo("You should not asked this service")
@@ -49,9 +56,9 @@ class starter(object):
        rospy.Subscriber("/start_kill_node", StartKillMsg, self.SIGcallback)
        self.corressAlone = {}
        self.corressAlone[0] = ["hokuyo_node","hokuyo_node","/dev/sensors/hokuyo_hhh"]
-       self.corressAlone[1] = ["gps_follow_car","gps_follow_car",""]
+       self.corressAlone[1] = ["gps_follow_car","gps_follow_car.py",""]
        self.corressAlone[2] = ["save_node","save_node",""]
-       self.corressAlone[3] = ["pwm_send","pwm_serial_py_node",""] 
+       self.corressAlone[3] = ["pwm_send","pwm_serial_py_node.py",""] 
        self.corressEnsemble = {}
        self.corressEnsemble[0] = ["ccny_openni","openni.launch",kinect]
        self.corressEnsemble[1] = ["ccny_rgbd","vo+mapping.launch",["visual_odometry","keyframe_mapper_node"]]
@@ -82,9 +89,9 @@ class starter(object):
    
     def start(self,msg):
         if msg.type == 0:
-           startLaunch(self.corressEnsemble[msg.nId])
+           startLaunch1(self.corressEnsemble[msg.nId])
         else:
-           startRun(self.corressAlone[msg.nId])
+           startRun1(self.corressAlone[msg.nId])
 
 
 node = starter()

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import rospy
+import rospy,os
 import smach
 import smach_ros
 import time
@@ -10,6 +10,7 @@ from gps_handler.srv import *
 from proxy_eura_smach.msg import ErrorMessage
 import waiter_subscriber as WS
 from ai_mapping_robot.msg import InitData
+from ai_mapping_robot.srv import ChangeInitData
 import math as m
 import LatLongUTMconversion as LLtoUTM
 import tf
@@ -33,24 +34,40 @@ class Init(smach.State):
         rospy.loginfo("init...")
         #verification branchement des sensors
         #ccny hokuyo test mavros 
-        os.system("roslaunch start_node start_node &")
+        os.system("rosrun start_node start_node_node.py &")
         #rospy.wait_for_service('start_node_srv')
         startKillPub = rospy.Publisher("/start_kill_node",StartKillMsg)
         # 1 rosrun :
         # 0 hokuyu 1 gps_follow 2 save_node 3 pwm_send
         # 0 roslaunch 
         #0 openni 1 rgbd 2 hector_mapping 3 mavros 4 support.launch
-        startKillPub.publish(StartKillMsg(1,0,4))#gps_handler start_node diagnostic drift_detection mode stuck rc_receive state_integrateur  proxy_eura_smach
+        skm = StartKillMsg()
+        skm.action  = 1
+        skm.type = 0
+        skm.nId = 4
+        startKillPub.publish(skm)#gps_handler start_node diagnostic drift_detection mode stuck rc_receive state_integrateur  proxy_eura_smach
         #rospy.wait_for_service('/IsNear') 
         rospy.sleep(3)
         stateInterPub.publish(Int8(0))
-        startKillPub.publish(StartKillMsg(1,1,3))
+        skm.action  = 1
+        skm.type = 1
+        skm.nId = 3
+        startKillPub.publish(skm)
         #rospy.wait_for_service('/pwm_serial_send')
-        startKillPub.publish(StartKillMsg(1,0,0))
+        skm.action  = 1
+        skm.type = 0
+        skm.nId = 0
+        startKillPub.publish(skm)
         #rospy.wait_for_service('/camera_rgb_frame_tf/get_loggers') then movie_save
-        startKillPub.publish(StartKillMsg(1,1,0))
-        #rospy.wait_for_service('/hokuyo_node/self_test')
-        startKillPub.publish(StartKillMsg(1,1,0)) #Mavros
+        skm.action  = 1
+        skm.type = 1
+        skm.nId = 0
+        startKillPub.publish(skm)
+        rospy.wait_for_service('/hokuyo_node/self_test')
+        skm.action  = 1
+        skm.type = 0
+        skm.nId = 3
+        startKillPub.publish(skm) #Mavros
         #wait parameter
         #get Data for what to do, level of autonomous
         initData = WS.waitForInitData(2*60)
