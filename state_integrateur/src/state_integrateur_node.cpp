@@ -17,9 +17,9 @@ StateInt::StateInt():initialized(false),
     ros::NodeHandle nh;
 
     if (!nh_private.getParam ("fixed_frame", fixed_frame_))
-        fixed_frame_ = "/world";
+        fixed_frame_ = "/start_mission";
     if (!nh_private.getParam ("base_frame", base_frame_))
-        base_frame_ = "/robot";
+        base_frame_ = "/robot_state";
 
     if (!nh_private.getParam ("k1", k1))
         k1 = 0.01;
@@ -213,7 +213,7 @@ void StateInt::integrateCar(int u1,int u2){
 using namespace stateint;
 int main(int argc,char **argv)
 {   
-    ros::init(argc,argv,"mat_from_imu");
+    ros::init(argc,argv,"state_integrateur");
     
     StateInt node;
 

@@ -13,11 +13,12 @@ from ai_mapping_robot.msg import InitData
 import math as m
 import LatLongUTMconversion as LLtoUTM
 import tf
+from start_node.msg import StartKillMsg
 
 global initData #0 teleOP 1semi autonomous  2 full autonomous
 global waitGPSData
 
-global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,listener
+global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,listener,startKillPub
 ############# INITIALISATION ###################################
 class Init(smach.State):  
     def __init__(self):
@@ -25,33 +26,38 @@ class Init(smach.State):
         
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener,startKillPub
         
         statePub.publish(String("Initialisation"))
-        stateInterPub.publish(Int8(0))
+
         rospy.loginfo("init...")
         #verification branchement des sensors
         #ccny hokuyo test mavros 
-        os.system("rosrun hokuyo_node hokuyo_node /dev/sensors/hokuyo_ &")
-        os.system("roslaunch ccny_openni openni.launch &")
-        os.system("roslaunch support.launch &")#gps_handler start_node diagnostic drift_detection mode stuck rc_receive state_integrateur  proxy_eura_smach
-        os.system("rosrun pwm_send pwm_serial_py_node &")
-        os.system("roslaunch mavros apm2_radio.launch &")
+        os.system("roslaunch start_node start_node &")
         #rospy.wait_for_service('start_node_srv')
-        #rospy.wait_for_service('/camera_rgb_frame_tf/get_loggers') then movie_save
-        #rospy.wait_for_service('/pwm_serial_send')
-        #rospy.wait_for_service('/hokuyo_node/self_test')
+        startKillPub = rospy.Publisher("/start_kill_node",StartKillMsg)
+        # 1 rosrun :
+        # 0 hokuyu 1 gps_follow 2 save_node 3 pwm_send
+        # 0 roslaunch 
+        #0 openni 1 rgbd 2 hector_mapping 3 mavros 4 support.launch
+        startKillPub.publish(StartKillMsg(1,0,4))#gps_handler start_node diagnostic drift_detection mode stuck rc_receive state_integrateur  proxy_eura_smach
         #rospy.wait_for_service('/IsNear') 
+        rospy.sleep(3)
+        stateInterPub.publish(Int8(0))
+        startKillPub.publish(StartKillMsg(1,1,3))
+        #rospy.wait_for_service('/pwm_serial_send')
+        startKillPub.publish(StartKillMsg(1,0,0))
+        #rospy.wait_for_service('/camera_rgb_frame_tf/get_loggers') then movie_save
+        startKillPub.publish(StartKillMsg(1,1,0))
+        #rospy.wait_for_service('/hokuyo_node/self_test')
+        startKillPub.publish(StartKillMsg(1,1,0)) #Mavros
         #wait parameter
-        
         #get Data for what to do, level of autonomous
         initData = WS.waitForInitData(2*60)
         if initData=='Error':
            exit(0)
 
-        if not initData.autonomous_level:
-              return 'endInitTeleOp'
-
+        
         start= rospy.get_time()
         try:
           (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
@@ -78,8 +84,15 @@ class Init(smach.State):
              msgSRV.yLat1 = trans1[1]
              res = is_near_srv(msgSRV).response
              rospy.sleep(1.0/20.0)
+
         if not res:
-           return 'endInitTeleOp'
+           return 'endInitTeleOp' 
+
+        os.system("rosrun tf_dyn_static_broadcaster tf_dyn_static_broadcaster_node local_origin fcu local_origin start_mission &")
+        if not initData.autonomous_level:
+              return 'endInitTeleOp'
+
+        
         return 'endInit'
 #################################################################
 

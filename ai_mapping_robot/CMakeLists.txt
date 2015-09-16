@@ -14,7 +14,6 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   smach_ros
   smach
-  ai_mapping_robot
 )
 
 ## System dependencies are found with CMake's conventions
