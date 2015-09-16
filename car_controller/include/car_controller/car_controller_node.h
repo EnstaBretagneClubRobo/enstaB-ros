@@ -27,7 +27,8 @@ class CarController
    double k1_;
    double k2_;
    int ros_rate;
-
+   
+   ros::NodeHandle nh;
    std::string input_data_type_;
    std::string map_frame_;
    std::string base_frame_;

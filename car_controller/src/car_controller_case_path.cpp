@@ -46,7 +46,16 @@ void CarController::spinPath(){
   startCheck  = true;//TODO should be multithreading protected
   tf_listener_.lookupTransform(map_frame_, base_frame_,  
                                ros::Time(0), transformX);
-  
+
+  double distFromGoalSq = pow(transformX.getOrigin().x()-cases.x[size-1],2)+pow(transformX.getOrigin().y()-cases.y[size-1],2);
+
+  if (distFromGoalSq < 1) {
+     sendCommand(1500,1500);//Stop Motor
+     ros::Publisher pub = nh.advertise<std_msgs::Empty>("/astar_arrived",1);
+     pub.publish(std_msgs::Empty());
+     start = false;
+  }
+
   while ( !checkPosSegment(cases.x[i],cases.y[i],cases.x[i+1],cases.y[i+1]) && i < size-1) {
     i++;
   }

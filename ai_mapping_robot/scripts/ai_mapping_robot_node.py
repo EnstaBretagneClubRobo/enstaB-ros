@@ -328,7 +328,7 @@ class InitEntryBuilding(smach.State):
         smach.State.__init__(self, outcomes=['endEntryBuilding'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener,startKillPub
         statePub.publish(String("InitEntryBuilding"))
         stateInterPub.publish(Int8(4))
         servStartDiag()
@@ -423,9 +423,22 @@ class InitEntryBuilding(smach.State):
           poseX=0.5
           poseY=0.5
         w = dist/0.05
-        os.system("ruby /home/nuc1/ruby/launchFilecreate.rb %d %d %d %d"%(w,poseX,poseY))
-        #launch ccny hector static
-        #needed PKG mavros diagnostic
+        os.system("ruby /home/nuc1/ruby/launchFilecreate.rb %d %d %d"%(w,poseX,poseY))
+        #start tf static from (local_origin fcu) as map to gps_origin
+        skm = StartKillMsg()
+        skm.action  = 1
+        skm.type = 0
+        skm.nId = 1
+        startKillPub.publish(skm)#start ccny_rgbd
+        rospy.sleep(5)
+        os.system("rosrun tf static_transforme_publisher %f %f %f 0 0 0 /map /gps_origin 100 &")%(-trans1[0],-trans1[1],-trans1[2])
+        os.system("rosrun tf_dyn_static_broadcaster tf_dyn_static_broadcaster_node &") #launch ccny hector static
+
+        skm.action  = 1
+        skm.type = 0
+        skm.nId = 2
+        startKillPub.publish(skm)#start hector Mapping
+        rospy.sleep(5)
         servStartDiag()
         return 'endEntryBuilding'
 

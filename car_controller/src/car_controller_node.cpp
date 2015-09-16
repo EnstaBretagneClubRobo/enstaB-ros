@@ -11,7 +11,7 @@ CarController::CarController():startCheck(false),
                                xp(0)
 {
     ros::NodeHandle nh_private_("~");
-    ros::NodeHandle nh;
+    
 
     if (!nh_private_.getParam ("k1", k1_))
         k1_ = 0.1;

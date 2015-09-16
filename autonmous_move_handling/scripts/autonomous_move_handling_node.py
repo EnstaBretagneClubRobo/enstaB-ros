@@ -19,6 +19,7 @@ def stuck_cb(msg):
 def astar_arriv_cb(msg):
     global posGPSBuilding,listener
     #launch other tf form posGPSBuilding
+    os.system("rosrun tf static_transforme_publisher %f %f %f 0 0 0 /map /gps_origin 100 &")%(posGPSBuilding[i][0],posGPSBuilding[i][1],0)
     print "tt"
      
 
