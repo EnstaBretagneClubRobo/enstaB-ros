@@ -25,3 +25,4 @@ def is_near(req):
 rospy.init_node('gps_handler')
 rospy.on_shutdown(ShutdownCallback)
 serviceNear = rospy.Service('IsNear', IsNear, is_near)
+rospy.spin()

@@ -73,6 +73,11 @@ def remote_stop_cb(msg):
     global errorPub
     errorPub.publish(ErrorMessage(type1=3,int1=0))
 
+def remote_go_cb(msg):
+    r = rospy.publisher("/restart_msg",Empty).publish(Empty())
+    r.unregister
+
+
 rospy.init_node('proxy_eura_smach')
 rospy.on_shutdown(ShutdownCallback)
 
@@ -86,7 +91,8 @@ rospy.Subscriber("/remote_change_teleop",Empty,remote_change_cb)
 rospy.Subscriber("/remote_stop",Empty,remote_stop_cb)
 rospy.Subscriber("/sig_rc_6",Empty,remote_stop_cb)
 rospy.Subscriber("/sig_rc_5",Empty,remote_change_cb)
+rospy.Subscriber("/sig_rc_4",Empty,remote_go_cb)
 rospy.Subscriber("/stuck_msg",Int8,stuck_cb)
 rospy.Subscriber("/drift_msg",Empty,drift_cb)
 rospy.Subscriber("/autonomous_error",Empty,auto_cb)
-
+rospy.spin()
