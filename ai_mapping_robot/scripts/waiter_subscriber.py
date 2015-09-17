@@ -112,19 +112,20 @@ def waitForRemote(time):
 
 
 ############ Restart #########################
-def remoteCallback(msg):
-    global waitRestartMsg
+def remoteGoCallback(msg):
+    global waitRestartMsg,message
     waitRestartMsg = 0
+    message = msg
 
-def waitForRemote(time):
-    global waitRestartMsg
+def waitForRemoteGo(time):
+    global waitRestartMsg,message
+    message = Int8(0)
     start = rospy.get_time()
     waitRestartMsg = 1
     rospy.loginfo("wait InitData ...")
-    s = rospy.Subscriber('/restart_msg',Empty,remoteCallback)
+    s = rospy.Subscriber('/restart_msg',Int8,remoteCallback)
     while waitRestartMsg and rospy.get_time()-start < time:
         rospy.sleep(1.0/20.0)
     s.unregister()
-    return not waitRestartMsg
-
+    return message
     

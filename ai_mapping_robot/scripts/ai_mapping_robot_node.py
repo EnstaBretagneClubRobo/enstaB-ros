@@ -16,6 +16,7 @@ import LatLongUTMconversion as LLtoUTM
 import tf
 from start_node.msg import StartKillMsg
 from save_node.srv import *
+from autonmous_move_handling import *
 
 global initData #0 teleOP 1semi autonomous  2 full autonomous
 global waitGPSData
@@ -33,10 +34,10 @@ class Init(smach.State):
         statePub.publish(String("Initialisation"))
 
         rospy.loginfo("init...")
-        #verification branchement des sensors
+        #TODO verification branchement des sensors
         #ccny hokuyo test mavros 
         os.system("rosrun start_node start_node_node.py &")
-        #rospy.wait_for_service('start_node_srv')
+        rospy.wait_for_service('start_node_srv')
         startKillPub = rospy.Publisher("/start_kill_node",StartKillMsg)
         # 1 rosrun :
         # 0 hokuyu 1 gps_follow 2 save_node 3 pwm_send
@@ -46,29 +47,29 @@ class Init(smach.State):
         skm.action  = 1
         skm.type = 0
         skm.nId = 4
-        startKillPub.publish(skm)#gps_handler start_node diagnostic drift_detection mode stuck rc_receive state_integrateur  proxy_eura_smach
+        startKillPub.publish(skm)#support.launch: gps_handler start_node diagnostic drift_detection mode stuck rc_receive state_integrateur  proxy_eura_smach
         #rospy.wait_for_service('/IsNear') 
         rospy.sleep(3)
-        stateInterPub.publish(Int8(0))
+        stateInterPub.publish(Int8(0))#now we can publish this message not listened before
         skm.action  = 1
         skm.type = 1
         skm.nId = 3
-        startKillPub.publish(skm)
+        startKillPub.publish(skm)#pwm serial send 
         #rospy.wait_for_service('/pwm_serial_send')
         skm.action  = 1
         skm.type = 0
         skm.nId = 0
-        startKillPub.publish(skm)
+        startKillPub.publish(skm)#kinect
         #rospy.wait_for_service('/camera_rgb_frame_tf/get_loggers') then movie_save
         skm.action  = 1
         skm.type = 1
         skm.nId = 0
-        startKillPub.publish(skm)
+        startKillPub.publish(skm) #hokuyo
         rospy.wait_for_service('/hokuyo_node/self_test')
         skm.action  = 1
         skm.type = 0
         skm.nId = 3
-        startKillPub.publish(skm) #Mavros #Remote and pwm should be online ! otherwise ardu going into failsafe
+        startKillPub.publish(skm) #Mavros #Remote and/or pwm should be online ! otherwise ardu going into failsafe
         rospy.sleep(8)
         #wait parameter
         #get Data for what to do, level of autonomous
@@ -112,24 +113,25 @@ class Init(smach.State):
               return 'endInitTeleOp'
 
         
-        return 'endInit'
+        return 'endInitGPS' #ardu not an option as we can't use it properly with computer for now
 #################################################################
-
+global waypointsGPS
+waypointsGPS = 0
 ################# Go Building ###################################
 class GoBuildingGPS(smach.State): 
     def __init__(self):
-        smach.State.__init__(self, outcomes=['gps_done'])
+        smach.State.__init__(self, outcomes=['endGoBuilding'])#gps_done','gps_stop'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener,startKillPub,result
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener,startKillPub,result,info_state_for_emer,waypointsGPS
+        info_state_for_emer = 0;
         statePub.publish(String("GoBuildingGPS"))
         stateInterPub.publish(Int8(1))
         servStartDiag()
         rospy.loginfo("GoBuildingGPS")
         
         #launch GPS algo plus evitement obstacle
-        #wait for GPS waipoint(s)
-        #make sure Cytron is good
+        
         #launch algo colour movie recorder
         #needed PKG gps algo move color detection mavros pwm_serial_send 
         
@@ -145,22 +147,25 @@ class GoBuildingGPS(smach.State):
         rospy.sleep(2)
 
         r = rospy.Publisher('start_gps_follow',Int8)
-        r.publish(Int8(1))
+        
+        #wait for GPS waipoint(s)
         result = WS.waitForGPSData(self,2*60)
         if result=='preempted':
            return 'preempted'
         elif result=='Error':
-             selfErrorPub(type1=3)
+             err  = ErrorMessage()
+             err.type1=3
+             selfErrorPub.publish(err)
              rospy.sleep(1)
              if self.preempt_requested():
                 rospy.loginfo("Go building GPS is being preempted")
                 self.service_preempt()
                 return 'preempted'
         else:
-           Lat =result[0]#last coord of list of waypoints
-           Long = result[1]
-
-
+           Lat =result[0][0]#last coord of list of waypoints
+           Long = result[0][1]
+           waypointsGPS = result[1]
+        r.publish(Int8(1))
         msgSRV = IsNearRequest()
         msgSRV.type1 = 0
         msgSRV.type2 = 1
@@ -172,7 +177,7 @@ class GoBuildingGPS(smach.State):
         res = is_near_srv(msgSRV).response
         while not res:#wait for GPS for 5 min and check when we are in range 
              if self.preempt_requested():
-                r.publish(Int8(1))
+                r.publish(Int8(0))
                 r.unregister()
                 rospy.loginfo("Go building GPS is being preempted")
                 self.service_preempt()
@@ -222,7 +227,8 @@ class GoBuildingGPSArdu(smach.State):
         smach.State.__init__(self, outcomes=['endGoBuilding'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener,info_state_for_emer
+        info_state_for_emer = 1;
         rospy.loginfo("GoBuilfingGPSArdu")
         statePub.publish(String("GoBuildingGPSArdu"))
         stateInterPub.publish(Int8(2))
@@ -281,7 +287,8 @@ class GoBuildingTeleOp(smach.State):
         smach.State.__init__(self, outcomes=['endGoBuilding'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,info_state_for_emer
+        info_state_for_emer = 2;
         statePub.publish(String("GoBuildingTeleOp"))
         stateInterPub.publish(Int8(3))
         servStartDiag()
@@ -327,16 +334,24 @@ class EmergencyStopGo(smach.State):
         smach.State.__init__(self, outcomes=['endEmergPrepEntry','endEmergTeleOp','endEmergGPSArdu','endEmergGPS'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,info_state_for_emer
         WS.sendCommand(1500,1500)
         servStartDiag()
         statePub.publish(String("EmergencyStopGo"))
         rospy.loginfo("EmergencyStopGo")
-        #make sure Cytron is good
-        #start algo deplacement       
-        #needed PKG pwm_serial_send 
-        WS.waitForRemote(60*60)
-        return 'endEmergencyStopGo'
+
+        msg = WS.waitForRemoteGo(60*60)
+        if msg.data:
+           return 'endEmergPrepEntry'
+        else:
+          if state==0:
+            return 'endEmergGPS'
+          elif state==1:
+            return 'endEmergGPSArdu'
+          else:
+            return 'endEmergTeleOp'
+           
+        return 'endEmergTeleOp'
 
 ##################################################################
 
@@ -347,7 +362,7 @@ class InitEntryBuilding(smach.State):
         smach.State.__init__(self, outcomes=['endEntryBuilding'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener,startKillPub
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener,startKillPub,LatEntry,LongEntry
         statePub.publish(String("InitEntryBuilding"))
         stateInterPub.publish(Int8(4))
         servStartDiag()
@@ -366,7 +381,7 @@ class InitEntryBuilding(smach.State):
         lat3 = 42.954209 #not the end of the building
         long3 = 10.599991
         (e,xB3,yB3) = LLtoUTM(lat3,long3)
-        lat4 = 42.954093  #not the end of the building
+        lat4 = 42.954093  #south of building not a corner
         long4 = 10.599861
         (e,xB4,yB4) = LLtoUTM(lat4,long4)
         ############ Setting for init Map ######################
@@ -391,7 +406,7 @@ class InitEntryBuilding(smach.State):
         heading = [angle1,angle2,angle3]
         if initData.autonomous_level:
            WS.findHeading(listener,heading[initData.heading])
-        else:  #if teleOp wiat for signal from remote to indicate that we are in good position
+        else:  #if teleOp wait for signal from remote to indicate that we are in good position
            WS.waitForRemote(60)
         #calc size map needed
         Lat = 42.954306
@@ -407,7 +422,7 @@ class InitEntryBuilding(smach.State):
         res = 0
         while not res and rospy.get_time()-start<1*60:#wait for GPS for 1 min
              if self.preempt_requested():
-                rospy.loginfo("Go building GPS Ardu is being preempted")
+                rospy.loginfo("Init Entry  is being preempted")
                 self.service_preempt()
                 return 'preempted'
              try:
@@ -417,8 +432,8 @@ class InitEntryBuilding(smach.State):
              msgSRV.xLont1 = trans1[0]
              msgSRV.yLat1 = trans1[1]
              res = is_near_srv(msgSRV).response
-
-
+        LatEntry = trans1[0]
+        LongEntry = trans1[1]
         if initData.heading == 0:
           widthMap = largeur1+6
           heigthMap = d1+longueur1+1+2
@@ -443,14 +458,14 @@ class InitEntryBuilding(smach.State):
           poseY=0.5
         w = dist/0.05
         os.system("ruby /home/nuc1/ruby/launchFilecreate.rb %d %d %d"%(w,poseX,poseY))
-        #start tf static from (local_origin fcu) as map to gps_origin
+        
         skm = StartKillMsg()
         skm.action  = 1
         skm.type = 0
         skm.nId = 1
         startKillPub.publish(skm)#start ccny_rgbd
         rospy.sleep(5)
-        os.system("rosrun tf static_transforme_publisher %f %f %f 0 0 0 /map /gps_origin 100 &")%(-trans1[0],-trans1[1],-trans1[2])
+        os.system("rosrun tf static_transforme_publisher %f %f %f 0 0 0 /map /gps_origin 100 &")%(-trans1[0],-trans1[1],-trans1[2])#start tf (local_origin fcu) as map to gps_origin
         os.system("rosrun tf_dyn_static_broadcaster tf_dyn_static_broadcaster_node &") #launch ccny hector static
 
         skm.action  = 1
@@ -492,50 +507,52 @@ class EmergencyStopEntry(smach.State):
         servStartDiag()
         statePub.publish(String("EmergencyStopEntry"))
         rospy.loginfo("EmergencyStopEntry")
-        #make sure Cytron is good
-        #start algo deplacement       
-        #needed PKG
-        WS.waitForRemote(60*60)
-        return 'endEmergencyStopEntry'
+
+        WS.waitForRemoteGo(60*60)
+        return 'endEmergPrep' #we have to go back to make sur algos are good
 ###################################################################
 
 ################ InteriorCartoGraphie #####################
-
+global restartAlgo
+restartAlgo = 0
 class CartographieBuilding(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['endCartographieBuilding'])
         global  cartoExitMode
-        cartoExitMode =0
-
+        cartoExitMode = 0
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,cartoExitMode
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,cartoExitMode,restartAlgo
         statePub.publish(String("CartographyBuilding"))
         stateInterPub.publish(Int8(5))
+        
+        if restartAlgo:
+           print "tt" #restr ccny hector etc 
+
         servStartDiag()
         rospy.loginfo("CartographieBuilding")
         #make sure Cytron is good
-        #start algo deplacement       
+        #start algo deplacement     
         #if not teleOp launch algo point gps donne a l'avance ou lit ici
         #needed PKG : ccny hector hokuyo pwm_serial_send car_controller (astar_path) 
         if cartoExitMode == 3:
            servStartDiag()
            return 'endCartographieBuilding'
-        cartoExitMode =0 #mode preempted
+        cartoExitMode =0 #assumption mode preempted
         
-        cartoEnd = 1
         start = rospy.get_time()
-        while rospy.get_time()-start<2*60:#send by callback
+        while rospy.get_time()-start<2*60:#send by callback wait 2 min then procedural stop except if preempted
             if self.preempt_requested():
                 rospy.loginfo("interior Cartographie is being preempted")
                 self.service_preempt()
-                servStartDiag()
                 return 'preempted'
             rospy.sleep(1.0/20.0)
-        cartoExitMode = 1 #mode normal
-        #get status
+        cartoExitMode = 1 #mode normal : going into procStop then re Carto
+        #get status mapping
+        status = rospy.ServiceProxy("get_mapping_status",GetMappingStatus)
+        if status():
+           cartoExitMode = 3
         if cartoExitMode == 1 :
            self.service_preempt()
-           servStartDiag()
            return 'preempted'
         WS.sendCommand(1500,1500)
         servStartDiag()
@@ -573,9 +590,8 @@ class ProceduralStop(smach.State):
         servStartDiag()        
         rospy.loginfo("ProceduralStop")
         save = rospy.ServiceProxy("/save_shot",Save_inst_srv)
-        #need restart algo ?
-        #start algo deplacement       
-        #needed PKG sauvegarde ?
+        save(Save_inst_srv(True))
+
         if self.preempt_requested():
             rospy.loginfo("ProceduralStop is being preempted")
             self.service_preempt()
@@ -605,7 +621,7 @@ class EmergencyStopInt(smach.State):
         smach.State.__init__(self, outcomes=['endEmer_Exit','endEmer_Proc','endEmer_Carto'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,cartoExitMode
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,cartoExitMode,firstTime
         WS.sendCommand(1500,1500)
         servStartDiag()
         statePub.publish(String("EmergencyStopInt"))   
@@ -613,8 +629,11 @@ class EmergencyStopInt(smach.State):
         #check algo state       
         #needed PKG sauvegarde 
         save = rospy.ServiceProxy("/save_shot",Save_inst_srv)
-        WS.waitForRemote(60*60)
-        return 'endEmergencyStopInt'
+        save(Save_inst_srv(True))
+        result = WS.waitForRemoteGo(60*60)
+        if result.data:
+           return 'endEmer_Carto'
+        return 'endEmer_Exit'
 
 
 
@@ -628,7 +647,7 @@ class ExitBuilding(smach.State):
         smach.State.__init__(self, outcomes=['endExitBuilding'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener,LatEntry,LongEntry
         statePub.publish(String("ExitBuilding"))
         stateInterPub.publish(Int8(7))
         servStartDiag()
@@ -638,8 +657,8 @@ class ExitBuilding(smach.State):
            return 'teleop' 
         #start algo deplacement       
         #needed PKG astar_path pwm_serial_send mavros gps ?
-        Lat = 10,600#coord of entry
-        Long = 42,4555
+        Lat = LatEntry #coord of entry get them with tf map to gps record in ai_mapping! but what if redo
+        Long = LongEntry
         msgSRV = IsNearRequest()
         msgSRV.type1 = 0
         msgSRV.type2 = 1
@@ -733,12 +752,12 @@ class EmergencyStopExit(smach.State):
         global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData
         WS.sendCommand(1500,1500)
         servStartDiag()
-        rospy.loginfo("EmergencyStopInt")
-        #make sure Cytron is good
-        #start algo deplacement       
-        #needed PKG sauvegarde ?
-        WS.waitForRemote(60*60)
-        return 'endEmergencyStopInt'
+        rospy.loginfo("EmergencyStopExitBuilding")
+        msg = WS.waitForRemoteGo(60*60)
+        if msg.data:
+           return 'endEmer_End'
+        else:
+            return 'endEmer_Exit'
 
 
 
@@ -760,8 +779,12 @@ class EndExitBuilding(smach.State):
         #make sure Cytron is good
         #start algo deplacement       
         #needed PKG sauvegarde ?
-        
+
         servStartDiag()
+        #stop ccny hector ??
+        if initData.autonomous_level:
+           return 'endEx_CartoGPS'
+        
         return 'endEx_CartoTeleOp'
 
 ###################################################################
@@ -774,7 +797,7 @@ class ReturnHomeGPS(smach.State):
         smach.State.__init__(self, outcomes=['endReturnHomeGPS'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData, listener
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData, listener, waypointsGPS
         statePub.publish(String("ReturnHomeGPS"))
         stateInterPub.publish(Int8(10))
         servStartDiag()
@@ -788,27 +811,38 @@ class ReturnHomeGPS(smach.State):
         skm.action  = 1
         skm.type = 1
         skm.nId = 1
-        startKillPub.publish(skm)
+        startKillPub.publish(skm)#start algo deplacement
         rospy.sleep(2)
 
         Lat = 42.954306
         Long = 10.599778
         r = rospy.Publisher('start_gps_follow',Int8)
-        r.publish(Int8(1))
+        
         result = WS.waitForGPSData(self,2*60)
         if result=='preempted':
            return 'preempted'
-        elif result=='Error':
-             selfErrorPub(type1=3)
+        elif result=='Error' and waypointGPS == 0:
+             err  = ErrorMessage()
+             err.type1=3
+             selfErrorPub.publish(err)
              rospy.sleep(1)
              if self.preempt_requested():
                 rospy.loginfo("Go building GPS is being preempted")
                 self.service_preempt()
                 return 'preempted'
+        elif waypointGPS != 0:
+           text
+           for i in waypointsGPS[::-1]:
+              text = i+'@'
+           text  = text[:-1]
+           temp = rospy.Publisher('gps_string',String)
+           temp.publish(String(txt))
+           temp.unregister()
         else:
-           Lat =result[0]#last coord of list of waypoints
-           Long = result[1]
-           
+           Lat =result[0][0]#last coord of list of waypoints
+           Long = result[0][1]
+
+        r.publish(Int8(1))#algo follow can really start
         msgSRV = IsNearRequest()
         msgSRV.type1 = 0
         msgSRV.type2 = 1
@@ -820,7 +854,7 @@ class ReturnHomeGPS(smach.State):
         res = is_near_srv(msgSRV).response
         while not res:#wait for GPS for 5 min and check when we are in range 
              if self.preempt_requested():
-                r.publish(Int8(1))
+                r.publish(Int8(0))
                 r.unregister()
                 rospy.loginfo("Go building GPS is being preempted")
                 self.service_preempt()
@@ -841,7 +875,7 @@ class ReturnHomeGPS(smach.State):
         skm.action  =0
         skm.type = 1
         skm.nId = 1
-        startKillPub.publish(skm)
+        startKillPub.publish(skm)#kill gps_follow
         return 'endReturnHomeGPS'
 
 def retGPS_cb(outcome_map):
@@ -974,12 +1008,19 @@ class EmergencyStopReturn(smach.State):
         global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData
         WS.sendCommand(1500,1500)
         servStartDiag()
-        rospy.loginfo("EmergencyStopInt")
-        #make sure Cytron is good
-        #start algo deplacement       
-        #needed PKG sauvegarde ?
-        WS.waitForRemote(60*60)
-        return 'endEmergencyStopInt'
+        rospy.loginfo("EmergencyStopReturn")
+        msg = WS.waitForRemoteGo(60*60)
+        if msg.data:
+           return 'endEmergEnd'
+        else:
+          if state==0:
+            return 'endEmergGPS'
+          elif state==1:
+            return 'endEmergGPSArdu'
+          else:
+            return 'endEmergTeleOp'
+           
+        return 'endEmergTeleOp'
 
 ###################################################################
 
@@ -988,10 +1029,6 @@ def changeInitData_cb(req):
     initData.heading = req.data
     return ChangeInitDataResponse()
 ###################################################################
-def monitoring(ud, msg):
-    
-    return False
-
 
 ###################################################################
 def ShutdownCallback():
@@ -1162,7 +1199,7 @@ with sm_cal:
                                                                                     'exit_stop':'EmergencyStopExit'})
 
     smach.StateMachine.add('EmergencyStopExit', EmergencyStopExit(),transitions={'endEmer_End':'EndExit',
-                                                                                 'endEmer_Exit':'ExitBuilding'})
+                                                                                 'endEmer_Exit':'ExitTeleOp'})
 
     #End Exit
     smach.StateMachine.add('EndExit',EndExitBuilding(),transitions={'endEx_CartoGPS':'ReturnGPS',

@@ -6,8 +6,8 @@ from std_msgs import Empty,Int8
 from nav_msgs import OccupancyGrid
 from autonmous_move_handling.srv import *
 
-global posGPSBuilding,listener
-
+global posGPSBuilding,listener,i
+i = 0
 posGPSBuilding = [[42.555,10.6]]
 
 def ShutdownCallback():
@@ -18,10 +18,11 @@ def stuck_cb(msg):
 
 
 def astar_arriv_cb(msg):
-    global posGPSBuilding,listener
+    global posGPSBuilding,listener,i
     #launch other tf form posGPSBuilding
-    os.system("rosrun tf static_transforme_publisher %f %f %f 0 0 0 /map /gps_origin 100 &")%(posGPSBuilding[i][0],posGPSBuilding[i][1],0)
-    print "tt"
+    os.system("ruby /home/nuc1/ruby/TfFlaunchFilecreate.rb %s %f %f %f %f %f %f %s %s"%("map_gps_tf",posGPSBuilding[i][0],posGPSBuilding[i][1],0,0,0,0,"/map","/gps_origin"))
+    os.system("roslaunch /home/nuc1/ruby/tf_static.launch &")
+    i=i+1
      
 def map_cb(map1):
     unknown=map1.data.count(-1)
@@ -43,7 +44,7 @@ unregist = False
 rospy.init_node('autom_handling')
 rospy.on_shutdown(ShutdownCallback)
 listener = tf.TransformListener()
-s = rospy.Service('add_two_ints', GetMappingStatus, handle_get_mapping_status)
+s = rospy.Service('/get_mapping_status', GetMappingStatus, handle_get_mapping_status)
 rospy.Subscriber("/stuck_msg",Empty,stuck_cb)
 rospy.Subscriber("/astar_arrived",Empty,astar_arriv_cb)
 map_sub = rospy.Subscriber("/map",OccupancyGrid,map_cb)

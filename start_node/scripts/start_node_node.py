@@ -58,7 +58,8 @@ class starter(object):
        self.corressAlone[0] = ["hokuyo_node","hokuyo_node","/dev/sensors/hokuyo_hhh"]
        self.corressAlone[1] = ["gps_follow_car","gps_follow_car.py",""]
        self.corressAlone[2] = ["save_node","save_node",""]
-       self.corressAlone[3] = ["pwm_send","pwm_serial_py_node.py",""] 
+       self.corressAlone[3] = ["pwm_serial_py","pwm_serial_py_node.py",""]
+       self.corressAlone[4] = ["autonmous_move_handling","autonomous_move_handling_node.py",""] 
        self.corressEnsemble = {}
        self.corressEnsemble[0] = ["ccny_openni","openni.launch",kinect]
        self.corressEnsemble[1] = ["ccny_rgbd","vo+mapping.launch",["visual_odometry","keyframe_mapper_node"]]

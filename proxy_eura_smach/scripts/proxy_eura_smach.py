@@ -65,17 +65,22 @@ def drift_cb(msg):
     if [5,7].count[state]:
        errorPub.publish(ErrorMessage(type1=1))
 
-def remote_stop_cb(msg):
+def remote_change_cb(msg):
     global errorPub
-    errorPub.publish(ErrorMessage(type1=2,int1=0))
+    errorPub.publish(ErrorMessage(type1=2,int1=0))#equivalent to going teleop
 
 def remote_stop_cb(msg):
     global errorPub
-    errorPub.publish(ErrorMessage(type1=3,int1=0))
+    errorPub.publish(ErrorMessage(type1=2,int1=1))
 
+ #those message are expected from emergency stop pass the state or go back to the state
 def remote_go_cb(msg):
-    r = rospy.publisher("/restart_msg",Empty).publish(Empty())
-    r.unregister
+    r = rospy.publisher("/restart_msg",Int8).publish(Int8(0))#ui can publish this message first
+    r.unregister()
+
+def remote_pass_cb(msg):
+    r = rospy.publisher("/restart_msg",Int8).publish(Int8(1))#ui can publish this message first
+    r.unregister()
 
 
 rospy.init_node('proxy_eura_smach')
@@ -92,6 +97,7 @@ rospy.Subscriber("/remote_stop",Empty,remote_stop_cb)
 rospy.Subscriber("/sig_rc_6",Empty,remote_stop_cb)
 rospy.Subscriber("/sig_rc_5",Empty,remote_change_cb)
 rospy.Subscriber("/sig_rc_4",Empty,remote_go_cb)
+rospy.Subscriber("/sig_rc_3",Empty,remote_pass_cb)
 rospy.Subscriber("/stuck_msg",Int8,stuck_cb)
 rospy.Subscriber("/drift_msg",Empty,drift_cb)
 rospy.Subscriber("/autonomous_error",Empty,auto_cb)
