@@ -79,7 +79,8 @@ def spin():
     if not cases==[]:
        if len(cases) == 1:
           cases = [trans1[0],trans1[1]]+cases
-       calcGPS()
+       if start:
+          calcGPS()
     rospy.sleep(1.0/20)
     
 def ShutdownCallback():

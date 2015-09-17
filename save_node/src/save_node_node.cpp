@@ -38,7 +38,7 @@ bool received_pcl;
 bool received_map;
 string path_record
 
-bool save_inst_srv_cb(save_inst_srv::save_inst_srv::Request &req,save_inst_srv::save_inst_srv::Response &res){
+bool save_inst_srv_cb(save_inst_srv::Save_inst_srv::Request &req,save_inst_srv::Save_inst_srv::Response &res){
  //send request received
    save_int_srv_asked = true;
    notGo = true;
@@ -139,10 +139,14 @@ int main(int argc,char **argv)
              received_image = false;
              received_pcl = false;
              received_map = false;
-             if hardRecord;
+             if (hardRecord)
+             {
                 //faire appel service record octomap et pcl 
-          }
+               //rosservice call /save_octomap path_record.ot  /save_pcd_map.pcd
+             }
+           }
        }
+       ross::time::sleep(ros::Duration(1));
     }
 }
 
