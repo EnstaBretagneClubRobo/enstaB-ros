@@ -13,22 +13,22 @@ kinect =["rgbd_manager","camera_rgb_frame_tf",
          "camera_rgb_optical_frame","debayer",
          "openni_driver","rgbd_image_proc"]
 dicNodeFail[0] = []
-dicNodeFail[1] = ["mavros","pwm_serial","hokuyo_node"]+kinect
-dicNodeFail[2] = ["mavros","pwm_serial","hokuyo_node"]+kinect
-dicNodeFail[3] = ["mavros","pwm_serial","hokuyo_node"]+kinect
-dicNodeFail[4] = ["mavros","pwm_serial","hokuyo_node"]+kinect
-dicNodeFail[5] = ["mavros","pwm_serial","hokuyo_node",
+dicNodeFail[1] = ["mavros","pwm_serial_py_node","hokuyo_node"]+kinect
+dicNodeFail[2] = ["mavros","pwm_serial_py_node","hokuyo_node"]+kinect
+dicNodeFail[3] = ["mavros","pwm_serial_py_node","hokuyo_node"]+kinect
+dicNodeFail[4] = ["mavros","pwm_serial_py_node","hokuyo_node"]+kinect
+dicNodeFail[5] = ["mavros","pwm_serial_py_node","hokuyo_node",
                   "visual_odometry","keyframe_mapper_node","hector_mapping"]+kinect
-dicNodeFail[6] = ["mavros","pwm_serial","hokuyo_node",
+dicNodeFail[6] = ["mavros","pwm_serial_py_node","hokuyo_node",
                   "visual_odometry","keyframe_mapper_node","hector_mapping"]+kinect
-dicNodeFail[7] = ["mavros","pwm_serial","hokuyo_node","hector_mapping"]+kinect
-dicNodeFail[8] = ["mavros","pwm_serial","hokuyo_node"]+kinect
-dicNodeFail[9] = ["mavros","pwm_serial","hokuyo_node"]+kinect
-dicNodeFail[10] = ["mavros","pwm_serial","hokuyo_node"]+kinect
-dicNodeFail[11] = ["mavros","pwm_serial","hokuyo_node"]+kinect
-dicNodeFail[12] = ["mavros","pwm_serial","hokuyo_node"]+kinect
+dicNodeFail[7] = ["mavros","pwm_serial_py_node","hokuyo_node","hector_mapping"]+kinect
+dicNodeFail[8] = ["mavros","pwm_serial_py_node","hokuyo_node"]+kinect
+dicNodeFail[9] = ["mavros","pwm_serial_py_node","hokuyo_node"]+kinect
+dicNodeFail[10] = ["mavros","pwm_serial_py_node","hokuyo_node"]+kinect
+dicNodeFail[11] = ["mavros","pwm_serial_py_node","hokuyo_node"]+kinect
+dicNodeFail[12] = ["mavros","pwm_serial_py_node","hokuyo_node"]+kinect
 
-neededNode = ["proxy_eura_smach","rc_received_node","gps_handler","pwm_serial"]
+neededNode = ["proxy_eura_smach","rc_received_node","gps_handler","pwm_serial_py_node"]
 
 def ShutdownCallback():
     print 'shutdown' #send stop messages 
@@ -58,12 +58,12 @@ def remote_change_cb(msg):
 def stuck_cb(msg):
     global errorPub,state
     if [1,2,4,5,7,9,10].count[state]
-    errorPub.publish(ErrorMessage(type1=1,int1=msg.data))
+    errorPub.publish(ErrorMessage(type1=1,int1=0))
 
 def drift_cb(msg):
     global errorPub,state
     if [5,7].count[state]:
-       errorPub.publish(ErrorMessage(type1=1))
+       errorPub.publish(ErrorMessage(type1=1,int1=0))
 
 def remote_change_cb(msg):
     global errorPub
@@ -98,7 +98,7 @@ rospy.Subscriber("/sig_rc_6",Empty,remote_stop_cb)
 rospy.Subscriber("/sig_rc_5",Empty,remote_change_cb)
 rospy.Subscriber("/sig_rc_4",Empty,remote_go_cb)
 rospy.Subscriber("/sig_rc_3",Empty,remote_pass_cb)
-rospy.Subscriber("/stuck_msg",Int8,stuck_cb)
+rospy.Subscriber("/stuck_msg",Empty,stuck_cb)
 rospy.Subscriber("/drift_msg",Empty,drift_cb)
 rospy.Subscriber("/autonomous_error",Empty,auto_cb)
 rospy.spin()

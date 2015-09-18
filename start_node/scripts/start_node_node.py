@@ -60,12 +60,14 @@ class starter(object):
        self.corressAlone[2] = ["save_node","save_node",""]
        self.corressAlone[3] = ["pwm_serial_py","pwm_serial_py_node.py",""]
        self.corressAlone[4] = ["autonmous_move_handling","autonomous_move_handling_node.py",""] 
+       self.corressAlone[5] = ["drift_detection","drift_detection_node.py",""]
        self.corressEnsemble = {}
        self.corressEnsemble[0] = ["ccny_openni","openni.launch",kinect]
        self.corressEnsemble[1] = ["ccny_rgbd","vo+mapping.launch",["visual_odometry","keyframe_mapper_node"]]
        self.corressEnsemble[2] = ["","/home/nuc1/ruby/mapping_default.launch",["hector_mapping","tt_pub"]]
        self.corressEnsemble[3] = ["mavros","apm2_radio.launch",["mavros"]]
        self.corressEnsemble[4] = ["","~/launch/support.launch",[]]
+       self.corressEnsemble[5] = ["car_controller","car_controller_launch.launch",["car_controller"]]
        self.reg = re.compile('.*\.launch')
        s = rospy.Service("/star_node_srv",Empty,dummy)
 

@@ -5,6 +5,7 @@ import tf
 from std_msgs import Empty,Int8
 from nav_msgs import OccupancyGrid
 from autonmous_move_handling.srv import *
+from autonmous_move_handling.msg import  AstarPoint
 
 global posGPSBuilding,listener,i
 i = 0
@@ -18,12 +19,20 @@ def stuck_cb(msg):
 
 
 def astar_arriv_cb(msg):
-    global posGPSBuilding,listener,i
-    #launch other tf form posGPSBuilding
-    os.system("ruby /home/nuc1/ruby/TfFlaunchFilecreate.rb %s %f %f %f %f %f %f %s %s"%("map_gps_tf",posGPSBuilding[i][0],posGPSBuilding[i][1],0,0,0,0,"/map","/gps_origin"))
-    os.system("roslaunch /home/nuc1/ruby/tf_static.launch &")
-    i=i+1
+    global posGPSBuilding,listener,i,exit
+    if not exit:
+      #launch other tf form posGPSBuilding
+      os.system("ruby /home/nuc1/ruby/TfFlaunchFilecreate.rb %s %f %f %f %f %f %f %s %s"%("map_gps_tf",posGPSBuilding[i][0],posGPSBuilding[i][1],0,0,0,0,"/pointtofollow","/gps_origin"))
+      os.system("roslaunch /home/nuc1/ruby/tf_static.launch &")
+      i=i+1
+    else:
+      
      
+
+def astart_setPoint(msg):
+    os.system("ruby /home/nuc1/ruby/TfFlaunchFilecreate.rb %s %f %f %f %f %f %f %s %s"%("map_gps_tf",msg.x,msg.y,0,0,0,0,"/pointtofollow","/gps_origin")
+    os.system("roslaunch /home/nuc1/ruby/tf_static.launch &")
+
 def map_cb(map1):
     unknown=map1.data.count(-1)
     width = map1.info.width
@@ -37,8 +46,13 @@ def handle_get_mapping_status(req):
        map_sub.unregister()
        unregist = True
     return GetMappingStatusResponse(finishMapping)
-  
-global map_sub,finishMapping,unregist
+
+def exit_cb(msg):
+    global exit
+    exit = True
+
+global map_sub,finishMapping,unregist,exit
+exit = False
 finishMapping = False
 unregist = False
 rospy.init_node('autom_handling')
@@ -48,4 +62,6 @@ s = rospy.Service('/get_mapping_status', GetMappingStatus, handle_get_mapping_st
 rospy.Subscriber("/stuck_msg",Empty,stuck_cb)
 rospy.Subscriber("/astar_arrived",Empty,astar_arriv_cb)
 map_sub = rospy.Subscriber("/map",OccupancyGrid,map_cb)
+rospy.Subscriber("/exit_build",Empty,exit_cb)
+rospy.Subscriber("/astar_set_point", AstarPoint,astart_setPoint)
 rospy.spin()

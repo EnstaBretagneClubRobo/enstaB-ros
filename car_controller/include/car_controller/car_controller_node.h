@@ -11,6 +11,7 @@
 #include "pwm_serial_py/Over_int.h"
 #include "car_controller/Start_Control.h"
 #include "car_controller/Double_Control.h"
+#include "car_controller/SetAlgoDrive.h"
 
 namespace car_controller
 {
@@ -56,6 +57,8 @@ class CarController
    bool speedControl(car_controller::Double_Control::Request &req,car_controller::Double_Control::Response &res);
 //////////////////////////////////////
    bool kUvControl(car_controller::Double_Control::Request &req,car_controller::Double_Control::Response &res);
+
+   bool setAlgo(car_controller::SetAlgoDrive::Request &req,car_controller::SetAlgoDrive::Response &res);
 
    void pathCB(astar_path::CasePath);
 

@@ -37,6 +37,7 @@ bool received_image;
 bool received_pcl;
 bool received_map;
 string path_record
+int time;
 
 bool save_inst_srv_cb(save_inst_srv::Save_inst_srv::Request &req,save_inst_srv::Save_inst_srv::Response &res){
  //send request received
@@ -115,6 +116,7 @@ int main(int argc,char **argv)
           image_sub = nh.subscribe("/camera/rgb/image_color",1,imageCB);
           pose_sub = nh.subscribe("/slam_out_pose",1,poseCB);
           odom_sub = nh.subscribe("/voodometry",1,odomCB);
+          time = now->tm_sec;
           notGo = false;
         }
 
@@ -130,8 +132,15 @@ int main(int argc,char **argv)
              pose_sub.unregister()
           if received_odom;
              odom_sub.unregister()
+          //save tf
+          tf::StampedTransform transform;
+          tf_listener_.lookupTransform("map","base_link" ,ros::Time(0), transform);
+          tf_listener_.lookupTransform("odom","camera_link" ,ros::Time(0), transform);
+          tf_listener_.lookupTransform("map","laser" ,ros::Time(0), transform);
+          tf_listener_.lookupTransform("local_origin","fcu" ,ros::Time(0), transform);
+          
           bool result = received_map && received_key && received_pcl && received_image && received_pose && received_odom;
-          if (result || (time(0)->tm_sec-now->tm_sec > 10)){
+          if (result || (time(0)->tm_sec-time > 10)){
              save_int_srv_asked = false;
              received_pose = false;
              received_key = false;

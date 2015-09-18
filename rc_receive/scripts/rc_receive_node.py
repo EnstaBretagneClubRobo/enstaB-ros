@@ -21,7 +21,7 @@ def sendInfo():
 def check(channels,channel):
     global states
     for (x,y,i) in zip(channels,channel,range(0,len(channel))):
-        if abs(x-y)>600:
+        if abs(x-y)>300:
            states[i] = 1;
     sendInfo()
     states = [0,0,0,0,0,0,0,0]

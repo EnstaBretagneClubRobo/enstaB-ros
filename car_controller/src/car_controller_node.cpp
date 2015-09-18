@@ -59,6 +59,14 @@ CarController::CarController():startCheck(false),
 
 CarController::~CarController(){} 
 
+bool CarController::setAlgo(car_controller::SetAlgoDrive::Request &req,car_controller::SetAlgoDrive::Response &res){
+  if (req.mode == 0)
+      spinCommand = &CarController::spinPath;
+  if (req.mode == 1)
+      spinCommand = &CarController::spinOccupancyGrid;
+  res.response = true;
+  return true;
+}
 
 int CarController::sendCommand(double k1,double k2){
   srv_.request.over_msg.fill(0);

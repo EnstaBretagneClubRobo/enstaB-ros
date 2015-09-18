@@ -207,7 +207,7 @@ def UTMtoLL(ReferenceEllipsoid, northing, easting, zone):
     return (Lat, Long)
 
 if __name__ == '__main__':
-    (z, e, n) = LLtoUTM(23, 42.0, 10.0)
+    (z, e, n) = LLtoUTM(23, 42.954306,10.599778)
     print z, e, n 
     (z, e, n) = LLtoUTM(23, 42.0, 10.01)
     print z, e, n

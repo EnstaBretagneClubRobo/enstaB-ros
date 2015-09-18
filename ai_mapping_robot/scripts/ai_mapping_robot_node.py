@@ -16,7 +16,8 @@ import LatLongUTMconversion as LLtoUTM
 import tf
 from start_node.msg import StartKillMsg
 from save_node.srv import *
-from autonmous_move_handling import *
+from autonmous_move_handling.srv import *
+from autonmous_move_handling.msg import  AstarPoint
 
 global initData #0 teleOP 1semi autonomous  2 full autonomous
 global waitGPSData
@@ -531,23 +532,45 @@ class CartographieBuilding(smach.State):
         servStartDiag()
         rospy.loginfo("CartographieBuilding")
         #make sure Cytron is good
-        #start algo deplacement     
+        #start algo deplacement 
+        if initData.autonomous_level:
+           skm = StartKillMsg()
+           skm.action  = 1
+           skm.type = 1
+           skm.nId = 4
+           startKillPub.publish(skm)#start algo gestion maenouvre   
+           skm.action  = 1
+           skm.type = 1
+           skm.nId = 4
+           startKillPub.publish(skm) 
         #if not teleOp launch algo point gps donne a l'avance ou lit ici
         #needed PKG : ccny hector hokuyo pwm_serial_send car_controller (astar_path) 
         if cartoExitMode == 3:
            servStartDiag()
            return 'endCartographieBuilding'
         cartoExitMode =0 #assumption mode preempted
-        
+        skm = StartKillMsg()
+        skm.action  = 1
+        skm.type = 1
+        skm.nId = 5
+        startKillPub.publish(skm)#start drift detection
         start = rospy.get_time()
         while rospy.get_time()-start<2*60:#send by callback wait 2 min then procedural stop except if preempted
             if self.preempt_requested():
                 rospy.loginfo("interior Cartographie is being preempted")
+                skm.action  = 0
+                skm.type = 1
+                skm.nId = 5
+                startKillPub.publish(skm)#stop drift detection
                 self.service_preempt()
                 return 'preempted'
             rospy.sleep(1.0/20.0)
         cartoExitMode = 1 #mode normal : going into procStop then re Carto
         #get status mapping
+        skm.action  = 0
+        skm.type = 1
+        skm.nId = 5
+        startKillPub.publish(skm)#stop drift detection
         status = rospy.ServiceProxy("get_mapping_status",GetMappingStatus)
         if status():
            cartoExitMode = 3
@@ -647,7 +670,7 @@ class ExitBuilding(smach.State):
         smach.State.__init__(self, outcomes=['endExitBuilding'])
 
     def execute(self, userdata):
-        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener,LatEntry,LongEntry
+        global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv,initData,listener,LatEntry,LongEntry,astar_arrived
         statePub.publish(String("ExitBuilding"))
         stateInterPub.publish(Int8(7))
         servStartDiag()
@@ -655,7 +678,18 @@ class ExitBuilding(smach.State):
         if not initData.autonomous_level:
            servStartDiag()
            return 'teleop' 
-        #start algo deplacement       
+        astar_arrived = False
+        arrivedSub = rospy.Subscriber("/astar_arrived",Empty,astar_arrived_cb)
+        #start algo deplacement 
+        s = rospy.Publisher("/exit_build",Empty)
+        s.publish(Empty())
+        s.unregister()
+        msgA = AstarPoint()
+        msgA.x =
+        msga.y =
+        s = rospy.publisher("/astar_set_point", AstarPoint)
+        s.publish(msgA)
+        s.unregister()
         #needed PKG astar_path pwm_serial_send mavros gps ?
         Lat = LatEntry #coord of entry get them with tf map to gps record in ai_mapping! but what if redo
         Long = LongEntry
@@ -668,7 +702,8 @@ class ExitBuilding(smach.State):
         msgSRV.yLat2 = Lat
         msgSRV.threshold = 1
         res = is_near_srv(msgSRV).response
-        while not res or not arrived:#wait for GPS for 5 min
+       
+        while not res or not astar_arrived:#wait for GPS for 5 min
              if self.preempt_requested():
                 rospy.loginfo("Exit Building is being preempted")
                 self.service_preempt()
@@ -683,6 +718,10 @@ class ExitBuilding(smach.State):
         WS.sendCommand(1500,1500)
         servStartDiag()
         return 'endExitBuilding'
+
+def astar_arrived_cb(msg):
+    global astar_arrived
+    astar_arrived = True
 
 def exit_cb(outcome_map):
     if outcome_map['ExitBuild'] == 'teleop':
@@ -713,6 +752,7 @@ class ExitBuildingTeleOp(smach.State):
         global selfErrorPub,stateInterPub,statePub,servStartDiag,is_near_srv
         statePub.publish(String("ExitBuildingTeleOp"))
         stateInterPub.publish(Int8(8))
+        #start astar path and driving algo too
         servStartDiag()
         rospy.loginfo("ExitBuildingTeleOp") 
         exitTeleopEnd = 1

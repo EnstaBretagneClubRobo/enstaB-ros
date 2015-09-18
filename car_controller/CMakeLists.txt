@@ -40,6 +40,7 @@ add_service_files(
    FILES
    Start_Control.srv
    Double_Control.srv
+   SetAlgoDrive.srv
  )
 
 ## Generate actions in the 'action' folder

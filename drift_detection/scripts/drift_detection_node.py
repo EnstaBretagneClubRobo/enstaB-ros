@@ -67,6 +67,7 @@ class drift_detect_node(object):
         self.bufferHokuyo = bufferTrans()
         self.bufferKinect = bufferTrans()
         self.bufferFakeOdo = bufferTrans()
+        #self.bufferGPS = bufferTrans()
 
     def ShutdownCallback(self):
         print 'shutdown' #send stop messages 
@@ -82,6 +83,8 @@ class drift_detect_node(object):
         rot2 = (0,0,0,0)
         trans3 = (0,0,0)
         rot3 = (0,0,0,0)
+        #trans4 = (0,0,0)
+        #rot4 = (0,0,0,0)
         
         while not rospy.is_shutdown():
             try:
@@ -99,20 +102,46 @@ class drift_detect_node(object):
                 fakeOdo = 1
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                 fakeOdo = 0
+            #try:
+            #    (trans4,rot4) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+            #    gps = 1
+            #except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+            #    gps = 0
             self.bufferHokuyo.add(trans1,rot1,hokuyo)
-            self.bufferKinect.add(trans1,rot1,kinect)
-            self.bufferFakeOdo.add(trans1,rot1,fakeOdo)
-            
+            self.bufferKinect.add(trans2,rot2,kinect)
+            self.bufferFakeOdo.add(trans3,rot3,fakeOdo)
+            #self.bufferGPS.add(trans4,rot4,gps)
             self.analyseBuffer()
             rate.sleep()
 
     def analyseBuffer(self):
-        binTime = [(x+y+z)  for (x, y,z) in zip(self.bufferHokuyo.IsGoodList,self.bufferKinect.IsGoodList,self.bufferFakeOdo.IsGoodList)]
+        global toCheck
+        binTime = [(toCheck[0]*x+toCheck[1]*y+toCheck[2]*z)  for (x,y,z) in zip(self.bufferHokuyo.IsGoodList,
+                                                                                               self.bufferKinect.IsGoodList,
+                                                                                               self.bufferFakeOdo.IsGoodList)]
+                                                                                               #self.bufferGPS.IsGoodList)]
         index = getLastVector(binTime,3)
         if not index[0] >= index[1]:
            (Htrans,Hrot) = self.bufferHokuyo.getDiff(index[0],index[1])
            (Ktrans,Krot) = self.bufferKinect.getDiff(index[0],index[1])
            (Ftrans,Frot) = self.bufferFakeOdo.getDiff(index[0],index[1])
+           #(Gtrans,Grot) = self.bufferGPS.getDiff(index[0],index[1])
+           nH = norm2(Htrans)
+           nK = norm2(Ktrans)
+           nF = norm2(Ftrans)
+           seuil = 0.2 #m ?
+           if nF > (nH+nk)/2 + seuil
+              s = rospy.Publisher("/stuck_msg",Empty)
+              s.publish(Empty())
+              s.unregister()
+           if nH>nF+seuil:
+              s = rospy.Publisher("/drift_msg",Empty)
+              s.publish(Empty())
+              s.unregister()
+           #nG = norm2(Gtrans)
+
+def norm2(trans):
+    return trans[0]**2+trans[1]**2+trans[2]**2
 
 #TODO getLast Good transform
    
