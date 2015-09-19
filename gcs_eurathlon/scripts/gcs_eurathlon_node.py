@@ -140,6 +140,9 @@ def sendCommand():
     valueCmd.set("")
     entreCmd.pack()
 
+def launchMachine():
+    ssh.sendline("rosrun ai_mapping_robot ai_mapping_robot_node.py &")
+
 p2 = PanedWindow(fenetre, orient=HORIZONTAL)
 p2.pack(side=TOP, expand=Y, fill=BOTH, pady=2, padx=2)
 frame21 = Frame(width=300, height=70, bg='grey', colormap="new")
@@ -152,6 +155,10 @@ frame22 = Frame(width=150, height=70, bg='grey', colormap="new")
 bCmd = Button(frame22,text="Send Command",command=sendCommand,anchor="n")
 bCmd.pack()
 p2.add(frame22)
+frame23 = Frame(width=150, height=70, bg='grey', colormap="new")
+bCmd2 = Button(frame23,text="Launch State Machine",command=launchMachine,anchor="n",bg='green')
+bCmd2.pack()
+p2.add(frame23)
 p2.pack()
 ############################################################
 

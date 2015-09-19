@@ -7,9 +7,9 @@ import sensor_msgs
 from math import *
 from pwm_serial_py.srv import Over_int
 import LatLongUTMconversion as LLtoUTM
-from std_msgs.msg import String
-from gps_follow
+from std_msgs.msg import String,Int8,Empty
 import numpy as n
+from gps_handler.srv import *
 
 global cases,start
 global trans1,rot1,speed_,kUv_,ku_,listener
@@ -27,27 +27,54 @@ def checkPosSegment(a,b):
 global transOld
 transOld =[999,999,0] #[630493.091685,4756982.12801,0]
 def calcGPS():
-  global trans1,rot1,cases,speed_,kUv_,ku_,listener,transOld
-  if (!receivedData)
-    return;  
-
+  global trans1,rot1,cases,speed_,kUv_,ku_,listener,transOld,is_near_srv
+  if not receivedData:
+    return
+  
   size = len(cases);
   i=0;
   
   cases = waitCases;
+  msgSRV = IsNearRequest()
+  msgSRV.type1 = 1
+  msgSRV.type2 = 1
+  msgSRV.xLont1 = trans1[0]
+  msgSRV.yLat1 = trans1[1]
+  msgSRV.xLont2 = cases[size-1][0]
+  msgSRV.yLat2 = cases[size-1][1]
+  msgSRV.threshold = 1
+  res = is_near_srv(msgSRV).response
+  if res:
+     sendCommand(1500,1500)
+     start = False
+     return
+  
+  while not checkPosSegment(cases[i][0],cases[i][0],cases[i+1][0],cases[i+1][0] and i < size-2):
+    i=i+1
 
 
-  start =
-  while ( !checkPosSegment(cases[0][i],cases[0][i],cases[0][i+1],cases[0][i+1]) && i < size-1) {
-    i=i+1;
-  }
-  vABx = cases[0][i+1]-cases[0][i];
-  vABy = cases[1][i+1]-cases[1][i];
-  vAMx = trans1[0]-cases[0][i];
-  vAMy = trans1[1]-cases[1][i];
+  msgSRV.type1 = 1
+  msgSRV.type2 = 1
+  msgSRV.xLont1 = trans1[0]
+  msgSRV.yLat1 = trans1[1]
+  msgSRV.xLont2 = cases[i+1][0]
+  msgSRV.yLat2 = cases[i+1][1]
+  msgSRV.threshold = 1
+  res = is_near_srv(msgSRV).response
+  if res:
+     i+=1
+     return
+
+  if i==size-2:
+     cases = [trans1,cases[i+1]]
+     i = 0
+  vABx = cases[i+1][0]-cases[i][0];
+  vABy = cases[i+1][1]-cases[i][1];
+  vAMx = trans1[0]-cases[i][0];
+  vAMy = trans1[1]-cases[i][1];
   (roll,pitch,theta) = trans.euler_from_quaternion(rot1)
   w = calScan(theta)#insert lidar data
-  attractLine(w,cases[0][i],vABx,vABy,trans1)
+  #attractLine(w,cases[i][0],vABx,vABy,trans1)
   #follow abstract ligne
   phi = atan2(vABy,vABx);
   eL = (vABx*vAMy-vABy*vAMx)/sqrt(vABx**2+vABy**2);#det([b-a,m-a])/norm(b-a);//distance a la ligne
@@ -69,12 +96,12 @@ def calcGPS():
   sendCommand(1500+v,1500+u);
 
 
-def attractLine(potentiel,linePoint,lineX,lineY,trans):
-    orto = [-lineY/sqrt(lineY**2+lineX**2),lineX/sqrt(lineY**2+lineX**2))
-    p = [trans[0]-linePoint[0],trans[1]-linePoint[1]]
-    pot = [-orto[0]*(p[0]*orto[0]+p[1]*orto[1]),-orto[1]*(p[0]*orto[0]+p[1]*orto[1])]
-    potentiel[0]+=pot[0]
-    potentiel[1]+=pot[1]
+#def attractLine(potentiel,linePoint,lineX,lineY,trans):
+#    orto = [-lineY/sqrt(lineY**2+lineX**2),lineX/sqrt(lineY**2+lineX**2))
+#    p = [trans[0]-linePoint[0],trans[1]-linePoint[1]]
+#    pot = [-orto[0]*(p[0]*orto[0]+p[1]*orto[1]),-orto[1]*(p[0]*orto[0]+p[1]*orto[1])]
+#    potentiel[0]+=pot[0]
+#    potentiel[1]+=pot[1]
 
 def calScan(theta):
     global waitScan,scan,workOnScan
@@ -82,7 +109,7 @@ def calScan(theta):
     workOnScan = True
     obst = []
     w = [0,0]
-    for (r,i) in zip(scan.ranges,range(0,len(san.ranges)):
+    for (r,i) in zip(scan.ranges,range(0,len(san.ranges))):
         if not isnan(r) and n.isfinite(r):
            if r < 2:#repulsif obstacle 
              w[0] += 10*cos(theta+i*scan.angle_increment)/r#obst.append([r,scan.angle_min+i*scan.angle_increment])
@@ -102,19 +129,22 @@ def sendCommand(channelSpeed,channelYaw):
         return resp1.result
     except rospy.ServiceException, e:
         print "Service call failed : %s"%e
-
-
+global countFail,cases
+countFail = 0
+cases = []
 def spin(): 
-    global trans1,rot1,cases,start
+    global trans1,rot1,cases,start,countFail
     try:
-      (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+      (trans1,rot1) = listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
       countFail = 0 
     except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
       countFail = countFail+1
-    if countFail > 10
+    if countFail > 10:
        rospy.loginfo( "error fatal TF")
        errorPub.publish(Empty())
        start = 0
+    else:
+       countFail = 0
     if not cases==[]:
        if len(cases) == 1:
           cases = [trans1[0],trans1[1]]+cases
@@ -141,7 +171,7 @@ def start_gps_follow_cb(msg):
     global start
     start = msg.data
 
-def scan_cb(msg)
+def scan_cb(msg):
     global waitScan,scan,workOnScan
     if workOnScan:
        scan = msg
@@ -149,17 +179,17 @@ def scan_cb(msg)
     else:
        waitScan = msg
 
-global scan
+global scan,is_near_srv
 scan = 0
 start = 0
 rospy.init_node('gps_follow_car')
 rospy.on_shutdown(ShutdownCallback)
 listener = tf.TransformListener()
-rospy.Subscriber('gps_string',String,casesCallback)
+rospy.Subscriber('gps_string',String,casesCallBack)
 errorPub = rospy.Publisher("/autonomous_error",Empty)
-
+is_near_srv = rospy.ServiceProxy('IsNear',IsNear)
 rospy.Subscriber('/start_gps_follow', Int8, start_gps_follow_cb)
-rospy.Subscriber('/scan', sensor_msgs.LaserScan, scan_cb)
+rospy.Subscriber('/scan', sensor_msgs.msg.LaserScan, scan_cb)
 
 while not rospy.is_shutdown():
    if start:

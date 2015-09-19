@@ -21,7 +21,8 @@ AstarPath::AstarPath()
         map_frame_ = "/map_star";
     if (!nh_private_.getParam ("base_frame", base_frame_))
         base_frame_ = "/base_star";
-    
+    start = false;
+    start_sub = nh_private_.subscribe("/start_astar",1,&AstarPath::setStart,this);
     map_sub = nh_private_.subscribe("/map",1,&AstarPath::mapCB,this);
     path_pub_= nh_private_.advertise<astar_path::CasePath>("path", 5);
     map_path_pub_= nh_private_.advertise<nav_msgs::OccupancyGrid>("map_path", 1);
@@ -51,7 +52,7 @@ void AstarPath::mapCB( const nav_msgs::OccupancyGrid newMap)
     waitMap = newMap;
   }
 };
-
+//deprecated
 bool AstarPath::setGoalService(astar_path::GoalSet::Request  &req,astar_path::GoalSet::Response &res)
 {
    int x = req.goal[0]/map.info.resolution;
@@ -80,12 +81,23 @@ bool AstarPath::setGoalService(astar_path::GoalSet::Request  &req,astar_path::Go
    return res.res= true;
 }
 
+void AstarPath::setStart(const std_msgs::Bool mes){
+    start=mes.data;
+}
+
 void AstarPath::findPath()
 {
   asleep = false;
-  if (goal[0] != 100000){
+  if (goal[0] != 100000 && start){
     ROS_INFO("Start A* algorithm"); 
     tf_lis.lookupTransform(base_frame_, map_frame_,ros::Time(0), transform);
+    tf_lis.lookupTransform("/pointtofollow", map_frame_,ros::Time(0), transform2);
+    int x = transform2.getOrigin().getX()/map.info.resolution;
+    int y = transform2.getOrigin().getY()/map.info.resolution;
+    goal[0]=x;
+    goal[1]=y;
+    waitgoal[0]=x;
+    waitgoal[1]=y;
     int pose[2];
     transformToXY(transform,pose);
     ROS_INFO("Goal x: %d , y : %d ",goal[0],goal[1]); 
@@ -110,7 +122,7 @@ void AstarPath::findPath()
       map = waitMap;
       findPath();
     }
-  
+  ros::Duration(1).sleep();
   asleep = true;
 };
 

@@ -39,6 +39,7 @@ class CarController
    ros::ServiceClient client_;
 
    ros::ServiceServer service_;
+   ros::ServiceServer service2_;
    ros::ServiceServer serviceSpeed_;
    ros::ServiceServer servicekUv_;
 

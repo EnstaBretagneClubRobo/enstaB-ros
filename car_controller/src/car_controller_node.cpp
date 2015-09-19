@@ -44,7 +44,7 @@ CarController::CarController():startCheck(false),
     
     client_ = nh_private_.serviceClient<pwm_serial_py::Over_int>("pwm_serial_send");
     service_ = nh_private_.advertiseService("starter", &CarController::starterControl,this);
-
+    service2_ = nh_private_.advertiseService("setAlgo", &CarController::setAlgo,this);
     //for CasePath
     path_sub_= nh_private_.subscribe("astar_path/path",1, &CarController::pathCB,this);
     serviceSpeed_ = nh_private_.advertiseService("speed", &CarController::speedControl,this);//TODO transform this service to a subcriber ?

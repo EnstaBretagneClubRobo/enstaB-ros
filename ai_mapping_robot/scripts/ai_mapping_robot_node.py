@@ -4,7 +4,7 @@ import rospy,os
 import smach
 import smach_ros
 import time
-from std_msgs.msg import Empty ,Int8,String
+from std_msgs.msg import Empty ,Int8,String,Bool
 import std_srvs.srv as sSrv
 from gps_handler.srv import *
 from proxy_eura_smach.msg import ErrorMessage
@@ -18,6 +18,7 @@ from start_node.msg import StartKillMsg
 from save_node.srv import *
 from autonmous_move_handling.srv import *
 from autonmous_move_handling.msg import  AstarPoint
+from car_controller.srv import * 
 
 global initData #0 teleOP 1semi autonomous  2 full autonomous
 global waitGPSData
@@ -50,6 +51,7 @@ class Init(smach.State):
         skm.nId = 4
         startKillPub.publish(skm)#support.launch: gps_handler start_node diagnostic drift_detection mode stuck rc_receive state_integrateur  proxy_eura_smach
         #rospy.wait_for_service('/IsNear') 
+        is_near_srv = rospy.ServiceProxy('IsNear',IsNear)
         rospy.sleep(3)
         stateInterPub.publish(Int8(0))#now we can publish this message not listened before
         skm.action  = 1
@@ -161,6 +163,12 @@ class GoBuildingGPS(smach.State):
              if self.preempt_requested():
                 rospy.loginfo("Go building GPS is being preempted")
                 self.service_preempt()
+                #Kill gps follow car
+                skm = StartKillMsg()
+                skm.action  = 0
+                skm.type = 1
+                skm.nId = 1
+                startKillPub.publish(skm)
                 return 'preempted'
         else:
            Lat =result[0][0]#last coord of list of waypoints
@@ -176,12 +184,18 @@ class GoBuildingGPS(smach.State):
         msgSRV.yLat2 = Lat
         msgSRV.threshold = 1
         res = is_near_srv(msgSRV).response
-        while not res:#wait for GPS for 5 min and check when we are in range 
+        while not res:#check arrive on place
              if self.preempt_requested():
                 r.publish(Int8(0))
                 r.unregister()
                 rospy.loginfo("Go building GPS is being preempted")
                 self.service_preempt()
+                #Kill gps follow car
+                skm = StartKillMsg()
+                skm.action  = 0
+                skm.type = 1
+                skm.nId = 1
+                startKillPub.publish(skm)
                 return 'preempted'
 
              try:
@@ -203,6 +217,7 @@ class GoBuildingGPS(smach.State):
         skm.type = 1
         skm.nId = 1
         startKillPub.publish(skm)
+        WS.sendCommand(1500,1500)
         return 'endGoBuilding'
 
 def goBGPS_cb(outcome_map):
@@ -533,6 +548,8 @@ class CartographieBuilding(smach.State):
         rospy.loginfo("CartographieBuilding")
         #make sure Cytron is good
         #start algo deplacement 
+        drivStart = rospy.ServiceProxy('car_controller/starter',Start_Control)
+        ast = rospy.Publisher("/start_astar",Bool)
         if initData.autonomous_level:
            skm = StartKillMsg()
            skm.action  = 1
@@ -540,9 +557,19 @@ class CartographieBuilding(smach.State):
            skm.nId = 4
            startKillPub.publish(skm)#start algo gestion maenouvre   
            skm.action  = 1
-           skm.type = 1
-           skm.nId = 4
-           startKillPub.publish(skm) 
+           skm.type = 0
+           skm.nId = 5
+           startKillPub.publish(skm) #start driving algo
+           skm.action  = 1
+           skm.type = 0
+           skm.nId = 6
+           startKillPub.publish(skm) #start astar not calculing
+           rospy.sleep(2)
+           try:
+              drivStart(True)
+           except rospy.ServiceException, e:
+              print "Service call failed: %s"%e
+           
         #if not teleOp launch algo point gps donne a l'avance ou lit ici
         #needed PKG : ccny hector hokuyo pwm_serial_send car_controller (astar_path) 
         if cartoExitMode == 3:
@@ -554,6 +581,9 @@ class CartographieBuilding(smach.State):
         skm.type = 1
         skm.nId = 5
         startKillPub.publish(skm)#start drift detection
+        if initData.autonomous_level == 2:
+           ast.publish(Bool(True))
+
         start = rospy.get_time()
         while rospy.get_time()-start<2*60:#send by callback wait 2 min then procedural stop except if preempted
             if self.preempt_requested():
@@ -562,9 +592,18 @@ class CartographieBuilding(smach.State):
                 skm.type = 1
                 skm.nId = 5
                 startKillPub.publish(skm)#stop drift detection
+                try:
+                   drivStart(False)
+                except rospy.ServiceException, e:
+                   print "Service call failed: %s"%e
                 self.service_preempt()
+                ast.publish(Bool(False))
                 return 'preempted'
             rospy.sleep(1.0/20.0)
+        try:
+           drivStart(False)
+        except rospy.ServiceException, e:
+           print "Service call failed: %s"%e
         cartoExitMode = 1 #mode normal : going into procStop then re Carto
         #get status mapping
         skm.action  = 0
@@ -576,9 +615,19 @@ class CartographieBuilding(smach.State):
            cartoExitMode = 3
         if cartoExitMode == 1 :
            self.service_preempt()
+           try:
+              drivStart(False)
+           except rospy.ServiceException, e:
+              print "Service call failed: %s"%e
+           ast.publish(Bool(False))
            return 'preempted'
         WS.sendCommand(1500,1500)
+        try:
+           drivStart(False)
+        except rospy.ServiceException, e:
+           print "Service call failed: %s"%e
         servStartDiag()
+        ast.publish(Bool(False))
         return 'endCartographieBuilding'
 
 def intercarto_cb(outcome_map):
@@ -678,20 +727,26 @@ class ExitBuilding(smach.State):
         if not initData.autonomous_level:
            servStartDiag()
            return 'teleop' 
+        ast = rospy.Publisher("/start_astar",Bool)
+        ast.publish(Bool(True))
         astar_arrived = False
         arrivedSub = rospy.Subscriber("/astar_arrived",Empty,astar_arrived_cb)
         #start algo deplacement 
+        drivStart = rospy.ServiceProxy('car_controller/starter',Start_Control)
+        try:
+           drivStart(True)
+        except rospy.ServiceException, e:
+           print "Service call failed: %s"%e
         s = rospy.Publisher("/exit_build",Empty)
         s.publish(Empty())
         s.unregister()
         msgA = AstarPoint()
-        msgA.x =
-        msga.y =
+        (e,msgA.x,msgA.y) =LLtoUTM.LLtoUTM(LatEntry,LongEntry)
         s = rospy.publisher("/astar_set_point", AstarPoint)
         s.publish(msgA)
         s.unregister()
         #needed PKG astar_path pwm_serial_send mavros gps ?
-        Lat = LatEntry #coord of entry get them with tf map to gps record in ai_mapping! but what if redo
+        Lat = LatEntry #coord of entry 
         Long = LongEntry
         msgSRV = IsNearRequest()
         msgSRV.type1 = 0
@@ -707,6 +762,11 @@ class ExitBuilding(smach.State):
              if self.preempt_requested():
                 rospy.loginfo("Exit Building is being preempted")
                 self.service_preempt()
+                ast.publish(Bool(False))
+                try:
+                  drivStart(True)
+                except rospy.ServiceException, e:
+                  print "Service call failed: %s"%e
                 return 'preempted'
              try:
                 (trans1,rot1) = listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
@@ -715,6 +775,11 @@ class ExitBuilding(smach.State):
              msgSRV.xLont1 = trans1[0]
              msgSRV.yLat1 = trans1[1]
              res = is_near_srv(msgSRV).response
+        try:
+           drivStart(False)
+        except rospy.ServiceException, e:
+           print "Service call failed: %s"%e
+        ast.publish(Bool(False))
         WS.sendCommand(1500,1500)
         servStartDiag()
         return 'endExitBuilding'

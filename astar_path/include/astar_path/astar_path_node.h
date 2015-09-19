@@ -12,6 +12,7 @@
 #include <tf/transform_listener.h>
 #include "astar_path/CasePath.h"
 #include "astar_path/GoalSet.h"
+#include "std_msgs/Bool.h"
 
 namespace astar
 {
@@ -47,6 +48,7 @@ public:
 private:
   ros::Subscriber map_sub;
   ros::ServiceServer goal_server_;
+  ros::Subscriber start_sub;
   ros::Publisher path_pub_;
   ros::Publisher map_path_pub_;
 
@@ -56,10 +58,11 @@ private:
   bool setGoalService(astar_path::GoalSet::Request  &req,astar_path::GoalSet::Response &res);
 
   void mapCB( const nav_msgs::OccupancyGrid );
-
+  bool start;
   void findPath();
 
   bool isSameMap();
+  void setStart(const std_msgs::Bool mes);
 
   void transformToXY(tf::StampedTransform transform, int *pose);
   int distance(int const *curr, int const *targ);
@@ -85,6 +88,7 @@ private:
   nav_msgs::OccupancyGrid waitMap;
   nav_msgs::OccupancyGrid path_map;
   tf::StampedTransform transform;
+  tf::StampedTransform transform2;
   bool asleep;
 
   int goal[2];

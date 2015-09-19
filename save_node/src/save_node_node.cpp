@@ -134,10 +134,25 @@ int main(int argc,char **argv)
              odom_sub.unregister()
           //save tf
           tf::StampedTransform transform;
-          tf_listener_.lookupTransform("map","base_link" ,ros::Time(0), transform);
-          tf_listener_.lookupTransform("odom","camera_link" ,ros::Time(0), transform);
-          tf_listener_.lookupTransform("map","laser" ,ros::Time(0), transform);
-          tf_listener_.lookupTransform("local_origin","fcu" ,ros::Time(0), transform);
+          try{
+            tf_listener_.lookupTransform("map","base_link" ,ros::Time(0), transform);
+          }
+          catch(tf::TransformException e){}
+
+          try{
+            tf_listener_.lookupTransform("odom","camera_link" ,ros::Time(0), transform);
+          }
+          catch(tf::TransformException e){}
+
+          try{
+            tf_listener_.lookupTransform("map","laser" ,ros::Time(0), transform);
+          }
+          catch(tf::TransformException e){}
+
+          try{
+            tf_listener_.lookupTransform("local_origin","fcu" ,ros::Time(0), transform);
+          }
+          catch(tf::TransformException e){}
           
           bool result = received_map && received_key && received_pcl && received_image && received_pose && received_odom;
           if (result || (time(0)->tm_sec-time > 10)){

@@ -68,6 +68,7 @@ class starter(object):
        self.corressEnsemble[3] = ["mavros","apm2_radio.launch",["mavros"]]
        self.corressEnsemble[4] = ["","~/launch/support.launch",[]]
        self.corressEnsemble[5] = ["car_controller","car_controller_launch.launch",["car_controller"]]
+       self.corressEnsemble[6] = ["astar_path","astar.launch",["astar_path"]]
        self.reg = re.compile('.*\.launch')
        s = rospy.Service("/star_node_srv",Empty,dummy)
 
