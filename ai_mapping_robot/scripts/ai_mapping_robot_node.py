@@ -7,13 +7,15 @@ import time
 from std_msgs.msg import Empty ,Int8,String,Bool
 import std_srvs.srv as sSrv
 from gps_handler.srv import *
-from proxy_eura_smach.msg import ErrorMessage
+from ai_mapping_robot.msg import ErrorMessage
 import waiter_subscriber as WS
 from ai_mapping_robot.msg import InitData
 from ai_mapping_robot.srv import ChangeInitData
 import math as m
+from math import *
 import LatLongUTMconversion as LLtoUTM
 import tf
+import tf.transformations as trans
 from start_node.msg import StartKillMsg
 from save_node.srv import *
 from autonmous_move_handling.srv import *
@@ -40,7 +42,8 @@ class Init(smach.State):
         #ccny hokuyo test mavros 
         os.system("rosrun start_node start_node_node.py &")
         rospy.wait_for_service('start_node_srv')
-        startKillPub = rospy.Publisher("/start_kill_node",StartKillMsg)
+        rospy.loginfo("service starter connected")
+        startKillPub = rospy.Publisher("/start_kill_node",StartKillMsg,latch = True)
         # 1 rosrun :
         # 0 hokuyu 1 gps_follow 2 save_node 3 pwm_send
         # 0 roslaunch 
@@ -50,7 +53,7 @@ class Init(smach.State):
         skm.type = 0
         skm.nId = 4
         startKillPub.publish(skm)#support.launch: gps_handler start_node diagnostic drift_detection mode stuck rc_receive state_integrateur  proxy_eura_smach
-        #rospy.wait_for_service('/IsNear') 
+        rospy.wait_for_service('/IsNear') 
         is_near_srv = rospy.ServiceProxy('IsNear',IsNear)
         rospy.sleep(3)
         stateInterPub.publish(Int8(0))#now we can publish this message not listened before
@@ -58,12 +61,12 @@ class Init(smach.State):
         skm.type = 1
         skm.nId = 3
         startKillPub.publish(skm)#pwm serial send 
-        #rospy.wait_for_service('/pwm_serial_send')
+        rospy.wait_for_service('/pwm_serial_send')
         skm.action  = 1
         skm.type = 0
         skm.nId = 0
         startKillPub.publish(skm)#kinect
-        #rospy.wait_for_service('/camera_rgb_frame_tf/get_loggers') then movie_save
+        rospy.wait_for_service('/camera_rgb_frame_tf/get_loggers') #then movie_save
         skm.action  = 1
         skm.type = 1
         skm.nId = 0
@@ -76,14 +79,15 @@ class Init(smach.State):
         rospy.sleep(8)
         #wait parameter
         #get Data for what to do, level of autonomous
-        initData = WS.waitForInitData(2*60)
+        initData =InitData()# WS.waitForInitData(2*60)
+        rospy.sleep(10)
         if initData=='Error':
            exit(0)
 
         
         start= rospy.get_time()
         try:
-          (trans1,rot1) = self.listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+          (trans1,rot1) = listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
           exit(0)
         Lat = 42.954306
@@ -98,7 +102,7 @@ class Init(smach.State):
         msgSRV.threshold = 500
         res = is_near_srv(msgSRV).response
         rospy.loginfo("Wait gps")
-        while rospy.get_time()-start < 5*60 and not res:#wait for GPS for 5 min
+        while rospy.get_time()-start < 1*60 and not res:#wait for GPS for 5 min
              try:
                 (trans1,rot1) = listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
              except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
@@ -311,16 +315,7 @@ class GoBuildingTeleOp(smach.State):
         rospy.loginfo("GoBuildingTeleOp")
         #needed PKG pwm_serial_send ccny
         # signal to end 
-        global teleOpGOend
-        s = rospy.Subscriber('/restart_msg',Empty,remoteCallback) 
-        teleOpGOend = 1
-        while not teleOpGOend:#send by callback
-            if self.preempt_requested():
-                rospy.loginfo("Go building TeleOp is being preempted")
-                self.service_preempt()
-                return 'preempted'
-            rospy.sleep(1.0/20.0)
-        s.unregister()
+        WS.waitForRemoteGo(20*60)
         servStartDiag()
         return 'endGoBuilding'
 
@@ -385,36 +380,39 @@ class InitEntryBuilding(smach.State):
         WS.sendCommand(1500,1500)
         rospy.loginfo("InitEntryBuilding")
         
-        
+        try:
+                (trans1,rot1) = listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                print "t"
  
         #check if orentation send
         lat1=42.954303
         long1 = 10.599793
-        (e,xB1,yB1) = LLtoUTM(lat1,long1)#west north end
+        (e,xB1,yB1) = LLtoUTM.LLtoUTM(23,lat1,long1)#west north end
         lat2 = 42.954285
         long2 = 10.600006
-        (e,xB2,yB2) = LLtoUTM(lat2,long2)#east north end
+        (e,xB2,yB2) = LLtoUTM.LLtoUTM(23,lat2,long2)#east north end
         lat3 = 42.954209 #not the end of the building
         long3 = 10.599991
-        (e,xB3,yB3) = LLtoUTM(lat3,long3)
+        (e,xB3,yB3) = LLtoUTM.LLtoUTM(23,lat3,long3)
         lat4 = 42.954093  #south of building not a corner
         long4 = 10.599861
-        (e,xB4,yB4) = LLtoUTM(lat4,long4)
+        (e,xB4,yB4) = LLtoUTM.LLtoUTM(23,lat4,long4)
         ############ Setting for init Map ######################
         
         largeur1 = m.sqrt((xB1-xB2)**2+(yB1-yB2)**2)
         a1 = yB2-yB1
         b1 = xB1-xB2
-        c1 = -(b1.yB1+a1.xB2)
-        longeur1 = abs(a1*xB4+b1*yB4+c1)/(m.sqrt(a1**2+b1**2))
+        c1 = -(b1*yB1+a1*xB2)
+        longueur1 = abs(a1*xB4+b1*yB4+c1)/(m.sqrt(a1**2+b1**2))
         a1 = yB2-yB1
         b1 = xB1-xB2
-        c1 = -(b1.yB1+a1.xB2)
+        c1 = -(b1*yB1+a1*xB2)
         a2 = yB2-yB3
         b2 = xB3-xB2
-        c2 = -(b2.yB3+a2.xB3)
-        d1 = abs(a1*trans1[0]+b1*trans[1]+c1)/(m.sqrt(a1**2+b1**2))
-        d2 = abs(a2*trans1[0]+b2*trans[1]+c2)/(m.sqrt(a2**2+b2**2))
+        c2 = -(b2*yB3+a2*xB3)
+        d1 = abs(a1*trans1[0]+b1*trans1[1]+c1)/(m.sqrt(a1**2+b1**2))
+        d2 = abs(a2*trans1[0]+b2*trans1[1]+c2)/(m.sqrt(a2**2+b2**2))
         angle1 = atan(a1)+m.pi/2.0+m.pi;
         angle2 = angle1+m.pi
         angle3 = atan(a1)
@@ -423,7 +421,7 @@ class InitEntryBuilding(smach.State):
         if initData.autonomous_level:
            WS.findHeading(listener,heading[initData.heading])
         else:  #if teleOp wait for signal from remote to indicate that we are in good position
-           WS.waitForRemote(60)
+           WS.waitForRemoteGo(5*1)
         #calc size map needed
         Lat = 42.954306
         Long = 10.599778#coordonate of building
@@ -436,7 +434,8 @@ class InitEntryBuilding(smach.State):
         msgSRV.yLat2 = Lat
         msgSRV.threshold = 20
         res = 0
-        while not res and rospy.get_time()-start<1*60:#wait for GPS for 1 min
+        start = rospy.get_time()
+        while not 1 and rospy.get_time()-start<1*60:#wait for GPS for 1 min
              if self.preempt_requested():
                 rospy.loginfo("Init Entry  is being preempted")
                 self.service_preempt()
@@ -444,7 +443,7 @@ class InitEntryBuilding(smach.State):
              try:
                 (trans1,rot1) = listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
              except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                continue
+                print "t"
              msgSRV.xLont1 = trans1[0]
              msgSRV.yLat1 = trans1[1]
              res = is_near_srv(msgSRV).response
@@ -472,8 +471,11 @@ class InitEntryBuilding(smach.State):
           dist = largeur1*2.1
           poseX=0.5
           poseY=0.5
+        dist = largeur1*2.1
+        poseX=0.5
+        poseY=0.5
         w = dist/0.05
-        os.system("ruby /home/nuc1/ruby/launchFilecreate.rb %d %d %d"%(w,poseX,poseY))
+        os.system("ruby /home/nuc1/ruby/launchFilecreate.rb %d %f %f"%(w,poseX,poseY))
         
         skm = StartKillMsg()
         skm.action  = 1
@@ -481,7 +483,8 @@ class InitEntryBuilding(smach.State):
         skm.nId = 1
         startKillPub.publish(skm)#start ccny_rgbd
         rospy.sleep(5)
-        os.system("rosrun tf static_transforme_publisher %f %f %f 0 0 0 /map /gps_origin 100 &")%(-trans1[0],-trans1[1],-trans1[2])#start tf (local_origin fcu) as map to gps_origin
+        (r,p,yaw) = trans.euler_from_quaternion(rot1)
+        os.system("rosrun tf static_transform_publisher %f %f %f 0 0 0 /map /gps_origin 100 &"%(-trans1[0],-trans1[1],-trans1[2]))#start tf (local_origin fcu) as map to gps_origin
         os.system("rosrun tf_dyn_static_broadcaster tf_dyn_static_broadcaster_node &") #launch ccny hector static
 
         skm.action  = 1
@@ -491,7 +494,7 @@ class InitEntryBuilding(smach.State):
         skm.action  = 1
         skm.type = 1
         skm.nId = 2
-        startKillPub.publish(skm)#start save_node
+        #startKillPub.publish(skm)#start save_node
         rospy.sleep(5)
         servStartDiag()
         return 'endEntryBuilding'
@@ -585,21 +588,21 @@ class CartographieBuilding(smach.State):
            ast.publish(Bool(True))
 
         start = rospy.get_time()
-        while rospy.get_time()-start<2*60:#send by callback wait 2 min then procedural stop except if preempted
-            if self.preempt_requested():
-                rospy.loginfo("interior Cartographie is being preempted")
-                skm.action  = 0
-                skm.type = 1
-                skm.nId = 5
-                startKillPub.publish(skm)#stop drift detection
-                try:
-                   drivStart(False)
-                except rospy.ServiceException, e:
-                   print "Service call failed: %s"%e
-                self.service_preempt()
-                ast.publish(Bool(False))
-                return 'preempted'
-            rospy.sleep(1.0/20.0)
+        #while rospy.get_time()-start<2*60:#send by callback wait 2 min then procedural stop except if preempted
+        #    if self.preempt_requested():
+        #        rospy.loginfo("interior Cartographie is being preempted")
+        #        skm.action  = 0
+        #        skm.type = 1
+        #        skm.nId = 5
+        #        startKillPub.publish(skm)#stop drift detection
+        #        try:
+        #           drivStart(False)
+        #        except rospy.ServiceException, e:
+        #           print "Service call failed: %s"%e
+        #        self.service_preempt()
+        #        ast.publish(Bool(False))
+        #        return 'preempted'
+        #    rospy.sleep(1.0/20.0)
         try:
            drivStart(False)
         except rospy.ServiceException, e:
@@ -609,18 +612,27 @@ class CartographieBuilding(smach.State):
         skm.action  = 0
         skm.type = 1
         skm.nId = 5
-        startKillPub.publish(skm)#stop drift detection
-        status = rospy.ServiceProxy("get_mapping_status",GetMappingStatus)
-        if status():
-           cartoExitMode = 3
-        if cartoExitMode == 1 :
-           self.service_preempt()
-           try:
+        global carto_finished,c_sub
+        c_sub = rospy.Subscriber("/restart_msg",Int8,checkCartoFin)
+        if initData.autonomous_level:
+          startKillPub.publish(skm)#stop drift detection
+          status = rospy.ServiceProxy("get_mapping_status",GetMappingStatus)
+          if status():
+            cartoExitMode = 3
+          if cartoExitMode == 1 :
+            self.service_preempt()
+            try:
               drivStart(False)
-           except rospy.ServiceException, e:
+            except rospy.ServiceException, e:
               print "Service call failed: %s"%e
-           ast.publish(Bool(False))
-           return 'preempted'
+            ast.publish(Bool(False))
+            return 'preempted'
+        elif True:
+          WS.waitForRemoteGo(30*60)
+          os.system("rosrun save_2d_map save_map.py &")
+          os.system("rosservice call /save_octomap /home/nuc1/data/octomap.ot")
+          os.system("rosservice call /save_pcd_map /home/nuc1/data/map3D.pcd")
+          return 'endCartographieBuilding'
         WS.sendCommand(1500,1500)
         try:
            drivStart(False)
@@ -628,7 +640,15 @@ class CartographieBuilding(smach.State):
            print "Service call failed: %s"%e
         servStartDiag()
         ast.publish(Bool(False))
+        self.service_preempt()
         return 'endCartographieBuilding'
+
+global carto_finished
+carto_finished = False
+def checkCartoFin(msg):
+    global carto_finished
+    carto_finished = msg.data ==1
+
 
 def intercarto_cb(outcome_map):
     if outcome_map['InterCarto'] == 'endCartographieBuilding':
@@ -661,8 +681,8 @@ class ProceduralStop(smach.State):
            return 'preempted'
         servStartDiag()        
         rospy.loginfo("ProceduralStop")
-        save = rospy.ServiceProxy("/save_shot",Save_inst_srv)
-        save(Save_inst_srv(True))
+        #save = rospy.ServiceProxy("/save_shot",Save_inst_srv)
+        #save(Save_inst_srv(True))
 
         if self.preempt_requested():
             rospy.loginfo("ProceduralStop is being preempted")
@@ -700,8 +720,8 @@ class EmergencyStopInt(smach.State):
         rospy.loginfo("EmergencyStopInt")
         #check algo state       
         #needed PKG sauvegarde 
-        save = rospy.ServiceProxy("/save_shot",Save_inst_srv)
-        save(Save_inst_srv(True))
+        #save = rospy.ServiceProxy("/save_shot",Save_inst_srv)
+        #save(Save_inst_srv(True))
         result = WS.waitForRemoteGo(60*60)
         if result.data:
            return 'endEmer_Carto'
@@ -741,7 +761,7 @@ class ExitBuilding(smach.State):
         s.publish(Empty())
         s.unregister()
         msgA = AstarPoint()
-        (e,msgA.x,msgA.y) =LLtoUTM.LLtoUTM(LatEntry,LongEntry)
+        (e,msgA.x,msgA.y) =LLtoUTM.LLtoUTM(23,LatEntry,LongEntry)
         s = rospy.publisher("/astar_set_point", AstarPoint)
         s.publish(msgA)
         s.unregister()
@@ -771,7 +791,7 @@ class ExitBuilding(smach.State):
              try:
                 (trans1,rot1) = listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
              except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                continue
+                print "t"
              msgSRV.xLont1 = trans1[0]
              msgSRV.yLat1 = trans1[1]
              res = is_near_srv(msgSRV).response
@@ -820,13 +840,7 @@ class ExitBuildingTeleOp(smach.State):
         #start astar path and driving algo too
         servStartDiag()
         rospy.loginfo("ExitBuildingTeleOp") 
-        exitTeleopEnd = 1
-        while not exitTeleopEnd: 
-             if self.preempt_requested():
-                rospy.loginfo("Exit Building Telop is being preempted")
-                self.service_preempt()
-                return 'preempted'
-             rospy.sleep(1.0/20.0)
+        WS.waitForRemoteGo(15*60)
         #needed PKG  pwm_serial_send mavros gps ?
         servStartDiag()
         WS.sendCommand(1500,1500)
@@ -968,7 +982,7 @@ class ReturnHomeGPS(smach.State):
              try:
                 (trans1,rot1) = listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
              except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                continue
+                print "try"
              msgSRV.xLont1 = trans1[0]
              msgSRV.yLat1 = trans1[1]
              res = is_near_srv(msgSRV).response
@@ -1035,7 +1049,7 @@ class ReturnHomeArdu(smach.State):
              try:
                 (trans1,rot1) = listener.lookupTransform("local_origin", "fcu", rospy.Time(0))
              except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                continue
+                print "try"
              msgSRV.xLont1 = trans1[0]
              msgSRV.yLat1 = trans1[1]
              res = is_near_srv(msgSRV).response
@@ -1074,16 +1088,7 @@ class ReturnHomeTeleOp(smach.State):
         rospy.loginfo("ReturnHomeTeleOp")
         #needed PKG mavros pwm_serial_send 
         # signal to end 
-        global teleOpGOend
-        s = rospy.Subscriber('/restart_msg',Empty,remoteCallback) 
-        teleOpGOend = 1
-        while not teleOpGOend:#send by callback
-            if self.preempt_requested():
-                rospy.loginfo("Go building TeleOp is being preempted")
-                self.service_preempt()
-                return 'preempted'
-            rospy.sleep(1.0/20.0)
-        s.unregister()
+        WS.waitForRemoteGo(15*60)
         servStartDiag()
         return 'endReturnHomeTeleOp'
 

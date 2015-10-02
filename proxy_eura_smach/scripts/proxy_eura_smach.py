@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 import rospy
-from std_msgs.msg import Int8
+from std_msgs.msg import Int8,Empty
 from std_msgs.msg import String
-from proxy_eura_smach import ErrorMessage
+from ai_mapping_robot.msg import ErrorMessage
 
 global state #0 init 1 gps 2 gpsA 3teleop 4entry 5 carto 6 proc stop 7 exit 8 exit Teleop  9end exit 10 ret gps 11 ret GPSA 12 teleop
 global dicNodeFail,setMonit,errorPub
@@ -12,6 +12,7 @@ global dicNodeFail,setMonit,errorPub
 kinect =["rgbd_manager","camera_rgb_frame_tf",
          "camera_rgb_optical_frame","debayer",
          "openni_driver","rgbd_image_proc"]
+dicNodeFail = {}
 dicNodeFail[0] = []
 dicNodeFail[1] = ["mavros","pwm_serial_py_node","hokuyo_node"]+kinect
 dicNodeFail[2] = ["mavros","pwm_serial_py_node","hokuyo_node"]+kinect
@@ -40,7 +41,7 @@ def setActualState(msg):
     state = msg.data
     string = ""
     for i in dicNodeFail:
-        string = i+'@'
+        string = str(i)+'@'
     string = string[:-1]
     setMonit.publish(String(string))
         
@@ -57,8 +58,8 @@ def remote_change_cb(msg):
 
 def stuck_cb(msg):
     global errorPub,state
-    if [1,2,4,5,7,9,10].count[state]
-    errorPub.publish(ErrorMessage(type1=1,int1=0))
+    if [1,2,4,5,7,9,10].count[state]:
+       errorPub.publish(ErrorMessage(type1=1,int1=0))
 
 def drift_cb(msg):
     global errorPub,state
@@ -75,20 +76,22 @@ def remote_stop_cb(msg):
 
  #those message are expected from emergency stop pass the state or go back to the state
 def remote_go_cb(msg):
-    r = rospy.publisher("/restart_msg",Int8).publish(Int8(0))#ui can publish this message first
-    r.unregister()
+    global r
+    r.publish(Int8(0))#ui can publish this message first
 
 def remote_pass_cb(msg):
-    r = rospy.publisher("/restart_msg",Int8).publish(Int8(1))#ui can publish this message first
-    r.unregister()
+    global r
+    r.publish(Int8(1))#ui can publish this message first
 
+def auto_cb(msg):
+    errorPub.publish(ErrorMessage(type1=1,int1=0))
 
 rospy.init_node('proxy_eura_smach')
 rospy.on_shutdown(ShutdownCallback)
 
 errorPub = rospy.Publisher("/stop_command",ErrorMessage)
 setMonit = rospy.Publisher("/set_monit_node",String)
-
+global r
 
 rospy.Subscriber("/set_state_proxy",Int8,setActualState)
 rospy.Subscriber("/failing_node",String,failing_node_cb)
@@ -101,4 +104,5 @@ rospy.Subscriber("/sig_rc_3",Empty,remote_pass_cb)
 rospy.Subscriber("/stuck_msg",Empty,stuck_cb)
 rospy.Subscriber("/drift_msg",Empty,drift_cb)
 rospy.Subscriber("/autonomous_error",Empty,auto_cb)
+r = rospy.Publisher("/restart_msg",Int8)
 rospy.spin()

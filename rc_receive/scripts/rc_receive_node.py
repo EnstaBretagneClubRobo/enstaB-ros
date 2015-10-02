@@ -15,7 +15,7 @@ def sendInfo():
     global states,publishers
     for i in range(0,8):
         if states[i]:
-           publishers[i].publish(Empty)
+           publishers[i].publish(Empty())
     
 
 def check(channels,channel):
@@ -32,6 +32,7 @@ def look(channel):
         channels = channel
         init = 1
     check(channels,channel)
+    channels = channel
     	    
 
 def callback(rcinmsg):

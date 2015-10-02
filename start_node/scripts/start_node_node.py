@@ -50,7 +50,7 @@ def dummy(msg):
 
 class starter(object):
     def __init__(self):
-       global kinect
+       global kinect,s
        rospy.init_node('start_node')
        rospy.on_shutdown(self.ShutdownCallback)
        rospy.Subscriber("/start_kill_node", StartKillMsg, self.SIGcallback)
@@ -62,7 +62,7 @@ class starter(object):
        self.corressAlone[4] = ["autonmous_move_handling","autonomous_move_handling_node.py",""] 
        self.corressAlone[5] = ["drift_detection","drift_detection_node.py",""]
        self.corressEnsemble = {}
-       self.corressEnsemble[0] = ["ccny_openni","openni.launch",kinect]
+       self.corressEnsemble[0] = ["ccny_openni_launch","openni.launch",kinect]
        self.corressEnsemble[1] = ["ccny_rgbd","vo+mapping.launch",["visual_odometry","keyframe_mapper_node"]]
        self.corressEnsemble[2] = ["","/home/nuc1/ruby/mapping_default.launch",["hector_mapping","tt_pub"]]
        self.corressEnsemble[3] = ["mavros","apm2_radio.launch",["mavros"]]
@@ -70,7 +70,8 @@ class starter(object):
        self.corressEnsemble[5] = ["car_controller","car_controller_launch.launch",["car_controller"]]
        self.corressEnsemble[6] = ["astar_path","astar.launch",["astar_path"]]
        self.reg = re.compile('.*\.launch')
-       s = rospy.Service("/star_node_srv",Empty,dummy)
+       s = rospy.Service("/start_node_srv",Empty,dummy)
+       rospy.loginfo("starter node ready")
 
     def ShutdownCallback(self):
        print 'shutdown' #send stop messages 

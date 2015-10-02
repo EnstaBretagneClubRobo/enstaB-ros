@@ -107,11 +107,11 @@ class drift_detect_node(object):
             #    gps = 1
             #except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             #    gps = 0
-            self.bufferHokuyo.add(trans1,rot1,hokuyo)
-            self.bufferKinect.add(trans2,rot2,kinect)
-            self.bufferFakeOdo.add(trans3,rot3,fakeOdo)
+            #self.bufferHokuyo.add(trans1,rot1,hokuyo)
+            #self.bufferKinect.add(trans2,rot2,kinect)
+            #self.bufferFakeOdo.add(trans3,rot3,fakeOdo)
             #self.bufferGPS.add(trans4,rot4,gps)
-            self.analyseBuffer()
+            #self.analyseBuffer()
             rate.sleep()
 
     def analyseBuffer(self):
@@ -130,12 +130,12 @@ class drift_detect_node(object):
            nK = norm2(Ktrans)
            nF = norm2(Ftrans)
            seuil = 0.2 #m ?
-           if nF > (nH+nk)/2 + seuil
-              s = rospy.Publisher("/stuck_msg",Empty)
+           if nF > (nH+nk)/2 + seuil:
+              s = rospy.Publisher("/stuck_msge",Empty)
               s.publish(Empty())
               s.unregister()
            if nH>nF+seuil:
-              s = rospy.Publisher("/drift_msg",Empty)
+              s = rospy.Publisher("/drift_msge",Empty)
               s.publish(Empty())
               s.unregister()
            #nG = norm2(Gtrans)

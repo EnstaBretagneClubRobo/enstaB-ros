@@ -11,11 +11,11 @@ def ShutdownCallback():
 
 def is_near(req):
     if req.type1:
-       (e,x1,y1) = LLtoUTM.LLtoUTM(req.yLat1,req.xLont1)
+       (e,x1,y1) = LLtoUTM.LLtoUTM(23,req.yLat1,req.xLont1)
     else:
        (x1,y1) = (req.xLont1,req.yLat1)
     if req.type2:
-       (e,x2,y2) = LLtoUTM.LLtoUTM(req.yLat2,req.xLont2)
+       (e,x2,y2) = LLtoUTM.LLtoUTM(23,req.yLat2,req.xLont2)
     else:
        (x2,y2) = (req.xLont2,req.yLat2)
     

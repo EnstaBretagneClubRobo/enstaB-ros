@@ -7,6 +7,17 @@ from std_srvs.srv import *
 
 global pub
 
+class node_list(object):
+      def __init__(self,nlist=[]):
+          self.nList = nlist
+      
+      def pingNodes(self):
+          global start
+          for i in self.nList:
+            if not i.pingNode() and start:
+                i.publish()
+                break
+
 class observed_node(object):
      global pub
      def __init__(self,name,msg_type=String,hertz=0.5):
@@ -66,25 +77,17 @@ class diagnostic_node(object):
                   self.observed_nodes.pingNodes()
              rospy.sleep(1.0/20.0)
 
-    def set_monit_node_cb(msg):
+    def set_monit_node_cb(self,msg):
         self.resetting = 1 
         list1 = msg.data.split('@')
         list2=[]
         for i in list1:
-           list2.append(observed_nodes(i))
-        self.observed_nodes = node_list(list2)
+           list2.append(self.observed_nodes(i))
+        self.observed_nodes = node_list()
+        self.observed_nodes.nList = list2
 
 
-class node_list(object):
-      def __init__(self,nlist=[]):
-          self.nList = nlist
-      
-      def pingNodes(self):
-          global start
-          for i in self.nList:
-            if not i.pingNode() and start:
-                i.publish()
-                break
+
 
 def start_diag_cb(srv):
     global start
@@ -97,7 +100,7 @@ start = 0
 
 pub = rospy.Publisher("/failing_node",String, queue_size=2)
 node = diagnostic_node()
-rospy.Subscriber("set_monit_node",String,node.set_monit_node_cb)
+rospy.Subscriber("set_monit_nodeR",String,node.set_monit_node_cb)
 rospy.Service('start_diag',Empty, start_diag_cb)
 
 node.spin()

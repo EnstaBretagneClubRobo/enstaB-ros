@@ -4,9 +4,9 @@ import rospy
 import smach
 import smach_ros
 import time
-from std_msgs.msg import Empty,String
+from std_msgs.msg import Empty,String,Int8
 from gps_handler.srv import *
-from proxy_eura_smach.msg import ErrorMessage
+from ai_mapping_robot.msg import ErrorMessage
 from ai_mapping_robot.msg import InitData
 import tf.transformations as trans
 from math import *
@@ -90,7 +90,6 @@ def sendCommand(channelSpeed,channelYaw):
     try:
         send_pwm = rospy.ServiceProxy('/pwm_serial_send',Over_int)
         resp1 = send_pwm([channelSpeed,0,channelYaw,0,0,0,0,0])
-        send_pwm.unregister()
         return resp1.result
     except rospy.ServiceException, e:
         print "Service call failed : %s"%e
@@ -103,8 +102,8 @@ def waitForRemote(time):
     global waitDataMsg
     start = rospy.get_time()
     waitDataMsg = 1
-    rospy.loginfo("wait InitData ...")
-    s = rospy.Subscriber('/placed_for_carto',Empty,dataCallback)
+    rospy.loginfo("wait For Remote ...")
+    s = rospy.Subscriber('/restart_msg',Int8,dataCallback)
     while waitDataMsg and rospy.get_time()-start < time:
         rospy.sleep(1.0/20.0)
     s.unregister()
@@ -122,8 +121,8 @@ def waitForRemoteGo(time):
     message = Int8(0)
     start = rospy.get_time()
     waitRestartMsg = 1
-    rospy.loginfo("wait InitData ...")
-    s = rospy.Subscriber('/restart_msg',Int8,remoteCallback)
+    rospy.loginfo("wait RemoteGo ...")
+    s = rospy.Subscriber('/restart_msg',Int8,remoteGoCallback)
     while waitRestartMsg and rospy.get_time()-start < time:
         rospy.sleep(1.0/20.0)
     s.unregister()

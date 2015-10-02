@@ -71,7 +71,7 @@ int main(int argc,char **argv)
     ros::Subscriber image_sub = nh.subscribe("/camera/rgb/image_color",1,imageCB);
 
     ros::Rate rate(fps);
-    cv::VideoWriter record(path_ss.str(), CV_FOURCC('D','I','V','X'), fps,cv::Size(640,480), true);
+    cv::VideoWriter record(path_ss.str(), CV_FOURCC('D','I','V','X'), fps,cv::Size(320,240), true);
 
     if( !record.isOpened() ) {
         ROS_ERROR("VideoWriter failed to open!\n");
@@ -91,7 +91,7 @@ int main(int argc,char **argv)
         record << framecv;
         }
     }
-
+    
     return 0;
 }
 

@@ -109,19 +109,19 @@ p = PanedWindow(fenetre, orient=HORIZONTAL)
 p.pack(side=TOP, expand=Y, fill=BOTH, pady=2, padx=2)
 frame11 = Frame(width=150, height=70, bg='grey', colormap="new")
 valueLog = StringVar()
-valueLog.set("elessog")
+valueLog.set("nuc1")
 entreLog = Entry(frame11,textvariable=valueLog,width=30)
 entreLog.pack()
 p.add(frame11)
 frame12 = Frame(width=150, height=70, bg='grey', colormap="new")
 valueIP = StringVar()
-valueIP.set("localhost")
+valueIP.set("192.168.0.75")
 entreIP = Entry(frame12,textvariable=valueIP,width=30)
 entreIP.pack()
 p.add(frame12)
 frame13 = Frame(width=150, height=70, bg='grey', colormap="new")
 valueMdp = StringVar()
-valueMdp.set("password")
+valueMdp.set("toor")
 entreMdp = Entry(frame13,textvariable=valueMdp,width=30)
 entreMdp.pack()
 p.add(frame13)
@@ -305,7 +305,7 @@ def closeTeleOp():
     os.system('xset r on')
     print "end control"
 
-def spawnControl():
+def spawnContrl():
     print "control"
     global topControl
     os.system('xset r off')
@@ -329,7 +329,13 @@ def spawnControl():
     labelframe.focus_set()
     center(topControl)
 
+def spawnControl():
+    os.system("python ~/Desktop/control_char/calib.py &")
+
 def sendGPS():
+    #ssh.sendline ("rostopic pub /restart_msg \"{}\"")   # run a command
+    ssh.prompt()             # match the prompt
+    print ssh.before 
     print "1-GPS"
 
 topGPS = None
@@ -340,12 +346,15 @@ def sendWayPoint():
     topGPS.destroy()
 
 def sendMGPS():
-    global topGPS,textGPS
-    topGPS = Toplevel()
-    topGPS.title("Enter GPS coordonates")
-    textGPS = Text(topGPS,width= 80,height= 15)
-    textGPS.pack()
-    Button(topGPS,text='Send WayPoint',bg='pink',command=sendWayPoint).pack()
+    global ssh
+    ssh.sendline ("rosservice call /save_opi \"{}\"")   # run a command
+    ssh.prompt()             # match the prompt
+    print ssh.before 
+    #topGPS = Toplevel()
+    #topGPS.title("Enter GPS coordonates")
+    #textGPS = Text(topGPS,width= 80,height= 15)
+    #textGPS.pack()
+    #Button(topGPS,text='Save OPI',bg='pink',command=sendWayPoint).pack()
     print "M-GPS"
 
 def goGPS():
@@ -372,10 +381,10 @@ valueLat = StringVar()
 valueLat.set("Lattitude")
 entreLat = Entry(frame41,textvariable=valueLat,width=30)
 entreLat.pack()
-button1GPS = Button(frame41,text='Send GPS coord',background = 'yellow',command=sendGPS)
+button1GPS = Button(frame41,text='Send Go message',background = 'yellow',command=sendGPS)
 button1GPS.pack()
 
-buttonMGPS = Button(frame41,text='Send Multiple GPS waypoint',background = 'cyan',command=sendMGPS)
+buttonMGPS = Button(frame41,text='Save OPI',background = 'cyan',command=sendMGPS)
 buttonMGPS.pack()
 #
 p4.add(frame42)
