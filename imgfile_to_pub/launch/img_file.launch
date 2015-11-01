@@ -1,0 +1,8 @@
+<!-- img file  -->
+<launch>
+
+  <node pkg="imgfile_to_pub" type="imgfile_to_pub_node" name="imgfile" output="screen">
+     <param name="filepath" value="/home/elessog/save1.jpg"/>
+    
+  </node>
+ </launch>
