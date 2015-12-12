@@ -1,0 +1,2 @@
+string login
+string message

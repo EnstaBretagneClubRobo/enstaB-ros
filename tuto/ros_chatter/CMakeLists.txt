@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(chatter_login)
+project(ros_chatter)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -44,18 +44,17 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
+#add_message_files(
 #   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+#   chat_msg.msg
+#)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
-#  FILES
-#  Check_login.srv
+#   FILES
+#   Service1.srv
 #   Service2.srv
-#)
+# )
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -65,10 +64,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-#generate_messages(
-#  DEPENDENCIES
-#  std_msgs
-#)
+# generate_messages(
+#   DEPENDENCIES
+#   std_msgs
+# )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -101,8 +100,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES chatter_login
-#  CATKIN_DEPENDS message_generation rospy std_msgs
+#  LIBRARIES ros_chatter
+#  CATKIN_DEPENDS rospy std_msgs
 #  DEPENDS system_lib
 )
 
@@ -118,24 +117,24 @@ include_directories(
 )
 
 ## Declare a C++ library
-# add_library(chatter_login
-#   src/${PROJECT_NAME}/chatter_login.cpp
+# add_library(ros_chatter
+#   src/${PROJECT_NAME}/ros_chatter.cpp
 # )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-# add_dependencies(chatter_login ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(ros_chatter ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-# add_executable(chatter_login_node src/chatter_login_node.cpp)
+# add_executable(ros_chatter_node src/ros_chatter_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(chatter_login_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(ros_chatter_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(chatter_login_node
+# target_link_libraries(ros_chatter_node
 #   ${catkin_LIBRARIES}
 # )
 
@@ -154,7 +153,7 @@ include_directories(
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS chatter_login chatter_login_node
+# install(TARGETS ros_chatter ros_chatter_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -179,7 +178,7 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_chatter_login.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_ros_chatter.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

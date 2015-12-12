@@ -1,28 +1,28 @@
 #!/usr/bin/env python
 import rospy
-from chatter_login.srv import *
+from chatter_srv_msg.srv import *
 
 global name_list
 name_list = []
 
 def srv_callback(req):
     global name_list
-    if req.username not in name_list:
-        print "connexion %s\n"%req.username
-        name_list.append(req.username)
-        return Check_loginResponse(True)
+    if req.login not in name_list:
+        print "connexion %s\n"%req.login
+        name_list.append(req.login)
+        return ServiceTutoResponse(True)
     else:
-        return Check_loginResponse(False)
+        return ServiceTutoResponse(False)
 
 def deconnexion(req):
     global name_list
-    print "deconnexion %s\n"%req.username
-    name_list.remove(req.username)
-    return Check_loginResponse(True)
+    print "deconnexion %s\n"%req.login
+    name_list.remove(req.login)
+    return ServiceTutoResponse(True)
 
 if __name__ == '__main__':
    rospy.init_node('logger')
-   s = rospy.Service('login_check', Check_login, srv_callback)
-   s = rospy.Service('deconnect', Check_login, deconnexion)
+   s = rospy.Service('login_check', ServiceTuto, srv_callback)
+   s = rospy.Service('deconnect', ServiceTuto, deconnexion)
 
    rospy.spin()
