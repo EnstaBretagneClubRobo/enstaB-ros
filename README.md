@@ -1,12 +1,14 @@
 # enstaB-ros
-Ce repo contient tous les nodes qui ont été créée pour faire fonctionner un robot terrestre 
-pour eurathlon 2015. Le but était de faire du mapping d'interieur en autononaume, bien de de nombreux nodes ont
-été créés tous ne sont pas fonctionnels et beaucoup ont été écrit dans la précipitation et ne sont pas forcement bien documentés, donc si vous aver des nodes qui font la même chose qu'un node présent et plus présentable autant le remplacer.
+Ce repo contient tous les nodes qui ont été créé pour faire fonctionner un robot terrestre 
+pour eurathlon 2015. Le but était de faire du mapping d'interieur en autonome, de bien nombreux nodes ont
+été créés tous ne sont pas fonctionnels et beaucoup ont été écrit dans la précipitation et ne sont pas forcement bien documentés,
+donc si vous avez des nodes qui font la même chose qu'un node présent et plus présentable autant le remplacer.
+Mais ils peuvent servir d'exemples pour d'autres nodes.
 
 ### ai_mapping_robot
 Ce node est une machine à état qui attend lance les nodes nécessaires au fonctionnement du robot (mais il 
-y a des problèmes de compbatibilité avec l'hokuyo si il n'est pas branché correctement.
-Les nodes sont lancer par start_node.
+y a des problèmes de compatibilité avec l'hokuyo si il n'est pas branché correctement.
+Les nodes sont lancé par start_node.
 
 ### astar_path
 Algorithme A* utilisant une occupancy grid (qui peut venir d'un hokuyo)
