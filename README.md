@@ -25,6 +25,7 @@ detecter des formes de certaines couleurs
 
 ### diagnostic_ros_system
 Après avoir recut quel node surveiller, il vérifié qu'ils sont toujours présent et les relance si nécessaire.
+(une alternative à l'argument respawn="True" dans le roslaunch)
 
 ### drift_detection
 Compare différente méthode de localisation pour determiner si une diverge (ex slam hokuyo, slam kinect, inertiel).
